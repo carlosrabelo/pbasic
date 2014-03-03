@@ -82,3 +82,86 @@ PRINT_CRLF:
     li      $v0, 4          # MARS syscall 4: Print String
     syscall
     jr      $ra
+
+# -----------------------------------------------------------------------
+# READ_LINE - Read input from console into input buffer
+# -----------------------------------------------------------------------
+# Description:
+#   Reads a line of text from the console into MEM_INPUT_BUF,
+#   strips the trailing newline, and converts lowercase to uppercase.
+#
+# Input: None
+# Output: None
+# Clobbers: $v0, $a0, $a1, $t0, $t1, $t2, $t3, $t4, $t5
+# -----------------------------------------------------------------------
+
+READ_LINE:
+    la      $t0, MEM_INPUT_BUF
+    li      $t2, 127        # Max characters to read (leaves room for null terminator)
+    li      $t3, 10         # ASCII for newline (\n)
+    li      $t5, 1          # First character flag
+
+RL_CHAR_LOOP:
+    li      $v0, 12         # MARS syscall 12: Read Character
+    syscall                 # Character is returned in $v0
+
+    # Check for EOF (0 or -1 in MARS)
+    beqz    $v0, RL_CHECK_EOF
+    li      $t4, -1
+    beq     $v0, $t4, RL_CHECK_EOF
+
+    # Clear first character flag
+    move    $t5, $zero
+
+    # Check for newline (\n)
+    beq     $v0, $t3, RL_EOF_OR_NL
+
+    # Ignore carriage return (\r, ASCII 13)
+    li      $t4, 13
+    beq     $v0, $t4, RL_CHAR_LOOP
+
+    # Store character if we have space
+    beqz    $t2, RL_SKIP_STORE
+    sb      $v0, 0($t0)
+    addiu   $t0, $t0, 1
+    addiu   $t2, $t2, -1
+
+RL_SKIP_STORE:
+    j       RL_CHAR_LOOP
+
+RL_CHECK_EOF:
+    bnez    $t5, READ_LINE_EOF # If first character is EOF, exit cleanly
+    j       RL_EOF_OR_NL
+
+RL_EOF_OR_NL:
+    sb      $zero, 0($t0)   # Null-terminate the string
+
+    # Post-process: convert lowercase to uppercase
+    la      $t0, MEM_INPUT_BUF
+
+READ_LINE_LOOP:
+    lb      $t1, 0($t0)
+    beqz    $t1, READ_LINE_DONE
+
+    # Check if char is 'a'-'z' (97 to 122)
+    li      $v0, 97
+    slt     $a1, $t1, $v0
+    bne     $a1, $zero, READ_LINE_NEXT
+    li      $v0, 122
+    slt     $a1, $v0, $t1
+    bne     $a1, $zero, READ_LINE_NEXT
+
+    # Convert to uppercase
+    addiu   $t1, $t1, -32
+    sb      $t1, 0($t0)
+
+READ_LINE_NEXT:
+    addiu   $t0, $t0, 1
+    j       READ_LINE_LOOP
+
+READ_LINE_DONE:
+    jr      $ra
+
+READ_LINE_EOF:
+    li      $v0, 10         # Exit syscall if EOF is encountered
+    syscall
