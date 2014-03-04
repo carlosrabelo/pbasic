@@ -11,8 +11,8 @@
 - [x] Implement the `TOKENIZE` engine to convert ASCII input into internal 1-byte tokens
 - [x] Recognize keywords via `MATCH_KEYWORD` (LET, PRINT, IF, GOTO, etc.)
 - [x] Parse decimal ASCII numbers into 16-bit little-endian format (token 0xC0)
-- [ ] Classify string literals (token 0xC1) and single-letter variables (A-Z)
-- [ ] Detokenizer routines (`PRINT_TOKENS`) to revert tokens back to text
+- [x] Classify string literals (token 0xC1) and single-letter variables (A-Z)
+- [x] Detokenizer routines (`PRINT_TOKENS`) to revert tokens back to text
 
 ## Phase 3: Program Memory Management
 - [ ] Initialize program memory as a Linked List (`PROG_INIT` with sentinel)
