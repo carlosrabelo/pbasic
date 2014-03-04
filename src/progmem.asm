@@ -97,3 +97,80 @@ LF_NOT_FOUND:
     li      $v0, 0
     move    $v1, $t4
     jr      $ra
+
+# -----------------------------------------------------------------------
+# MEM_OPEN_HOLE - Open a hole in program memory for insertion
+# -----------------------------------------------------------------------
+# Description:
+#   Shifts all data from $a0 to MEM_PROG_END right by $a1 bytes, creating
+#   a gap for new data. Updates MEM_PROG_END accordingly.
+#   Copy direction: right-to-left (high to low) to avoid overwriting.
+#
+# Input: $a0 = address where hole should start
+#        $a1 = size of hole in bytes
+# Output: None
+# Clobbers: $t0, $t1, $t2, $t3
+# -----------------------------------------------------------------------
+MEM_OPEN_HOLE:
+    la      $t0, MEM_PROG_END
+    lw      $t0, 0($t0)              # $t0 = MEM_PROG_END (source start, copy from here down)
+    addu    $t1, $t0, $a1            # $t1 = MEM_PROG_END + hole_size (destination end)
+
+    # Update MEM_PROG_END += hole_size
+    la      $t2, MEM_PROG_END
+    sw      $t1, 0($t2)
+
+    # Right-to-left copy: src = MEM_PROG_END-1 down to $a0
+    beq     $t0, $a0, MOH_DONE       # Nothing to shift
+    addiu   $t0, $t0, -1             # $t0 = last byte before old end
+    addiu   $t1, $t1, -1             # $t1 = last byte of new region
+
+MOH_LOOP:
+    lb      $t3, 0($t0)
+    sb      $t3, 0($t1)
+    addiu   $t0, $t0, -1
+    addiu   $t1, $t1, -1
+    blt     $t0, $a0, MOH_DONE
+    j       MOH_LOOP
+
+MOH_DONE:
+    jr      $ra
+
+# -----------------------------------------------------------------------
+# MEM_CLOSE_HOLE - Close a hole in program memory after deletion
+# -----------------------------------------------------------------------
+# Description:
+#   Shifts all data from ($a0 + $a1) to MEM_PROG_END left by $a1 bytes,
+#   closing the gap. Updates MEM_PROG_END accordingly.
+#   Copy direction: left-to-right (low to high) to avoid overwriting.
+#
+# Input: $a0 = start of hole to close
+#        $a1 = size of hole in bytes
+# Output: None
+# Clobbers: $t0, $t1, $t2, $t3
+# -----------------------------------------------------------------------
+MEM_CLOSE_HOLE:
+    # $t0 = source (hole_start + hole_size)
+    addu    $t0, $a0, $a1
+
+    # $t1 = MEM_PROG_END
+    la      $t3, MEM_PROG_END
+    lw      $t1, 0($t3)
+
+    # Update MEM_PROG_END -= hole_size
+    subu    $t2, $t1, $a1
+    sw      $t2, 0($t3)
+
+    # $t2 = destination (hole_start)
+    move    $t2, $a0
+
+MCH_LOOP:
+    beq     $t0, $t1, MCH_DONE
+    lb      $t3, 0($t0)
+    sb      $t3, 0($t2)
+    addiu   $t0, $t0, 1
+    addiu   $t2, $t2, 1
+    j       MCH_LOOP
+
+MCH_DONE:
+    jr      $ra
