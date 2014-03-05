@@ -28,7 +28,7 @@
 - [x] 16-bit unsigned division and modulo: `DIV16`, `MOD16` (using MIPS native `div` / `mflo` / `mfhi`)
 
 ## Phase 5: Expression Evaluator (Recursive Descent Parser)
-- [ ] `EVAL_FACTOR`: Handle numeric literals, variables, parentheses, and unary minus
+- [x] `EVAL_FACTOR`: Handle numeric literals, variables, parentheses, and unary minus
 - [ ] `EVAL_TERM`: Multiplication and division (`*`, `/`)
 - [ ] `EVAL_EXPR`: Addition and subtraction (`+`, `-`)
 - [ ] `EVAL_COND`: Boolean comparisons (`=`, `<>`, `<`, `>`, `<=`, `>=`)
