@@ -22,7 +22,7 @@
 - [x] Implement the `LIST` command to dump the tokenized linked list
 
 ## Phase 4: Mathematical Engine & Variables
-- [ ] Variable storage initialization (`.data` section or dynamic heap): `VAR_INIT`
+- [x] Variable storage initialization (`.data` section or dynamic heap): `VAR_INIT`
 - [ ] Variable access primitives: `VAR_GET`, `VAR_SET`
 - [ ] 16-bit unsigned multiplication: `MUL16` (using MIPS native `mult` / `mflo`)
 - [ ] 16-bit unsigned division and modulo: `DIV16`, `MOD16` (using MIPS native `div` / `mflo` / `mfhi`)
