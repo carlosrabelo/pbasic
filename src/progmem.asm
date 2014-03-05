@@ -353,3 +353,65 @@ LST_DONE:
     lw      $ra, 24($sp)
     addiu   $sp, $sp, 28
     jr      $ra
+
+# -----------------------------------------------------------------------
+# CMD_LIST - Dump all lines in the program linked list
+# -----------------------------------------------------------------------
+# Description:
+#   Walks the program linked list from MEM_PROG_START, printing each
+#   line as: <line_number> <detokenized text>\n
+#   Stops at the sentinel (line number 0).
+#
+# Input: None
+# Output: None
+# Clobbers: $t0, $t1, $t2, $t3, $s0
+# -----------------------------------------------------------------------
+CMD_LIST:
+    addiu   $sp, $sp, -8
+    sw      $ra, 4($sp)
+    sw      $s0, 0($sp)
+
+    la      $s0, MEM_PROG_START     # $s0 = current line pointer
+
+CL_LOOP:
+    # Read line number (16-bit LE)
+    lb      $t0, 0($s0)
+    andi    $t0, $t0, 0xFF
+    lb      $t1, 1($s0)
+    andi    $t1, $t1, 0xFF
+    sll     $t1, $t1, 8
+    or      $t2, $t0, $t1           # $t2 = line number
+
+    # Sentinel check
+    beqz    $t2, CL_DONE
+
+    # Print line number
+    move    $a0, $t2
+    jal     PRINT_NUMBER
+
+    # Print space separator
+    li      $a0, 32
+    jal     OUTCHAR
+
+    # Print tokens (detokenize)
+    addiu   $a0, $s0, 2             # $a0 = pointer past line number header
+    jal     PRINT_TOKENS
+
+    # Print newline
+    jal     PRINT_CRLF
+
+    # Advance to next line
+    addiu   $s0, $s0, 2             # Skip line number header
+
+CL_SCAN:
+    lb      $t0, 0($s0)
+    addiu   $s0, $s0, 1
+    bnez    $t0, CL_SCAN            # Skip past tokens + null
+
+    j       CL_LOOP
+
+CL_DONE:
+    lw      $s0, 0($sp)
+    lw      $ra, 4($sp)
+    addiu   $sp, $sp, 8
+    jr      $ra

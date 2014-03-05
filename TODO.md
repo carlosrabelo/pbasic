@@ -19,7 +19,7 @@
 - [x] Line finding algorithm (`LINE_FIND`)
 - [x] Dynamic memory insertion/deletion: `MEM_OPEN_HOLE`, `MEM_CLOSE_HOLE`
 - [x] Store new lines or replace existing ones: `LINE_STORE`
-- [ ] Implement the `LIST` command to dump the tokenized linked list
+- [x] Implement the `LIST` command to dump the tokenized linked list
 
 ## Phase 4: Mathematical Engine & Variables
 - [ ] Variable storage initialization (`.data` section or dynamic heap): `VAR_INIT`
