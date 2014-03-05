@@ -174,3 +174,182 @@ MCH_LOOP:
 
 MCH_DONE:
     jr      $ra
+
+# -----------------------------------------------------------------------
+# LINE_STORE - Store or replace a line in the program linked list
+# -----------------------------------------------------------------------
+# Description:
+#   Stores a new line or replaces an existing one in program memory.
+#   Lines are kept sorted by line number in ascending order.
+#   If MEM_TOKEN_BUF is empty (null at offset 0), deletes the line.
+#
+# Input: $a0 = line number (16-bit unsigned)
+#        MEM_TOKEN_BUF = null-terminated token data to store
+# Output: None
+# Clobbers: $t0, $t1, $t2, $t3, $s0-$s5
+# -----------------------------------------------------------------------
+LINE_STORE:
+    addiu   $sp, $sp, -28
+    sw      $ra, 24($sp)
+    sw      $s0, 20($sp)
+    sw      $s1, 16($sp)
+    sw      $s2, 12($sp)
+    sw      $s3, 8($sp)
+    sw      $s4, 4($sp)
+    sw      $s5, 0($sp)
+
+    move    $s0, $a0                # $s0 = line number
+
+    # Compute token length in MEM_TOKEN_BUF
+    la      $t0, MEM_TOKEN_BUF
+    li      $s1, 0                  # $s1 = token length
+LST_TLEN:
+    lb      $t1, 0($t0)
+    beqz    $t1, LST_TLEN_DONE
+    addiu   $t0, $t0, 1
+    addiu   $s1, $s1, 1
+    j       LST_TLEN
+
+LST_TLEN_DONE:
+    addiu   $s2, $s1, 3            # $s2 = total line size = tokens + 2(line#) + 1(null)
+
+    # Walk list to find insertion point or existing line
+    la      $t0, MEM_PROG_START
+    li      $s4, 0                  # $s4 = previous line pointer (0 = none)
+
+LST_WALK:
+    lb      $t1, 0($t0)
+    andi    $t1, $t1, 0xFF
+    lb      $t2, 1($t0)
+    andi    $t2, $t2, 0xFF
+    sll     $t2, $t2, 8
+    or      $t1, $t1, $t2          # $t1 = current line number
+
+    beqz    $t1, LST_INSERT_NEW    # Sentinel → insert here
+    beq     $t1, $s0, LST_REPLACE  # Exact match → replace
+
+    # Current > target → insert before current
+    slt     $t3, $t1, $s0
+    beqz    $t3, LST_INSERT_NEW
+
+    # Advance to next line
+    move    $s4, $t0
+    addiu   $t0, $t0, 2
+LST_SCAN:
+    lb      $t1, 0($t0)
+    addiu   $t0, $t0, 1
+    bnez    $t1, LST_SCAN
+    j       LST_WALK
+
+LST_INSERT_NEW:
+    # $t0 = insertion point, $s4 = previous line
+    move    $s3, $t0                # $s3 = insertion point
+
+    move    $a0, $s3
+    move    $a1, $s2
+    jal     MEM_OPEN_HOLE
+
+    # Write line number (16-bit LE)
+    andi    $t1, $s0, 0xFF
+    sb      $t1, 0($s3)
+    srl     $t1, $s0, 8
+    andi    $t1, $t1, 0xFF
+    sb      $t1, 1($s3)
+
+    # Copy tokens from MEM_TOKEN_BUF
+    la      $t0, MEM_TOKEN_BUF
+    addiu   $t2, $s3, 2
+LST_COPY:
+    lb      $t1, 0($t0)
+    sb      $t1, 0($t2)
+    beqz    $t1, LST_DONE
+    addiu   $t0, $t0, 1
+    addiu   $t2, $t2, 1
+    j       LST_COPY
+
+LST_REPLACE:
+    # $t0 = pointer to existing line
+    move    $s3, $t0                # $s3 = existing line pointer
+
+    # Compute old line size
+    addiu   $t1, $t0, 2
+LST_OLD:
+    lb      $t2, 0($t1)
+    addiu   $t1, $t1, 1
+    bnez    $t2, LST_OLD
+    sub     $s5, $t1, $s3           # $s5 = old line total size
+
+    # Empty tokens → delete line
+    beqz    $s1, LST_DELETE
+
+    # Same size → overwrite in place
+    beq     $s5, $s2, LST_OVERWRITE
+
+    # Different size: close old hole, then re-insert
+    move    $a0, $s3
+    move    $a1, $s5
+    jal     MEM_CLOSE_HOLE
+
+    # Find insertion point after previous line
+    beqz    $s4, LST_INS_START
+    move    $t0, $s4
+    addiu   $t0, $t0, 2
+LST_PREV:
+    lb      $t1, 0($t0)
+    addiu   $t0, $t0, 1
+    bnez    $t1, LST_PREV
+    move    $s3, $t0
+    j       LST_DO_INSERT
+
+LST_INS_START:
+    la      $s3, MEM_PROG_START
+
+LST_DO_INSERT:
+    move    $a0, $s3
+    move    $a1, $s2
+    jal     MEM_OPEN_HOLE
+
+    # Write line number
+    andi    $t1, $s0, 0xFF
+    sb      $t1, 0($s3)
+    srl     $t1, $s0, 8
+    andi    $t1, $t1, 0xFF
+    sb      $t1, 1($s3)
+
+    # Copy tokens
+    la      $t0, MEM_TOKEN_BUF
+    addiu   $t2, $s3, 2
+LST_COPY2:
+    lb      $t1, 0($t0)
+    sb      $t1, 0($t2)
+    beqz    $t1, LST_DONE
+    addiu   $t0, $t0, 1
+    addiu   $t2, $t2, 1
+    j       LST_COPY2
+
+LST_OVERWRITE:
+    la      $t0, MEM_TOKEN_BUF
+    addiu   $t2, $s3, 2
+LST_COPY3:
+    lb      $t1, 0($t0)
+    sb      $t1, 0($t2)
+    beqz    $t1, LST_DONE
+    addiu   $t0, $t0, 1
+    addiu   $t2, $t2, 1
+    j       LST_COPY3
+
+LST_DELETE:
+    move    $a0, $s3
+    move    $a1, $s5
+    jal     MEM_CLOSE_HOLE
+
+LST_DONE:
+    lw      $s5, 0($sp)
+    lw      $s4, 4($sp)
+    lw      $s3, 8($sp)
+    lw      $s2, 12($sp)
+    lw      $s1, 16($sp)
+    lw      $s0, 20($sp)
+    lw      $ra, 24($sp)
+    addiu   $sp, $sp, 28
+    jr      $ra
