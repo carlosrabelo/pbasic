@@ -164,14 +164,79 @@ EF_DONE:
     jr      $ra
 
 # -----------------------------------------------------------------------
-# EVAL_EXPR - Evaluate an expression (stub for recursive calls)
+# EVAL_TERM - Evaluate multiplicative expression (*, /)
 # -----------------------------------------------------------------------
 # Description:
-#   Stub that evaluates a single term. Will be expanded in Phase 5
-#   to handle addition and subtraction.
+#   Evaluates a term by calling EVAL_FACTOR, then loops while the next
+#   token is '*' (42) or '/' (47), applying the operation to the
+#   accumulated result.
+#
+# Input: None (reads from MEM_TOKEN_PTR)
+# Output: $v0 = evaluated value (32-bit signed)
+# Clobbers: $t0, $t1, $s0, $s1
+# -----------------------------------------------------------------------
+EVAL_TERM:
+    addiu   $sp, $sp, -16
+    sw      $ra, 12($sp)
+    sw      $s0, 8($sp)
+
+    jal     EVAL_FACTOR              # $v0 = first factor
+    move    $s0, $v0                 # $s0 = accumulator
+
+ET_LOOP:
+    la      $t0, MEM_TOKEN_PTR
+    lw      $t0, 0($t0)
+    lb      $t1, 0($t0)              # Peek next token
+    andi    $t1, $t1, 0xFF
+
+    li      $t2, 42                  # '*'
+    beq     $t1, $t2, ET_MUL
+
+    li      $t2, 47                  # '/'
+    beq     $t1, $t2, ET_DIV
+
+    j       ET_DONE                  # No more * or /
+
+ET_MUL:
+    addiu   $t0, $t0, 1             # Skip '*' token
+    la      $t1, MEM_TOKEN_PTR
+    sw      $t0, 0($t1)
+
+    jal     EVAL_FACTOR              # $v0 = next factor
+    move    $a0, $s0
+    move    $a1, $v0
+    jal     MUL16                    # $v0 = $a0 * $a1
+    move    $s0, $v0
+    j       ET_LOOP
+
+ET_DIV:
+    addiu   $t0, $t0, 1             # Skip '/' token
+    la      $t1, MEM_TOKEN_PTR
+    sw      $t0, 0($t1)
+
+    jal     EVAL_FACTOR              # $v0 = next factor
+    move    $a0, $s0
+    move    $a1, $v0
+    jal     DIV16                    # $v0 = $a0 / $a1
+    move    $s0, $v0
+    j       ET_LOOP
+
+ET_DONE:
+    move    $v0, $s0
+    lw      $s0, 8($sp)
+    lw      $ra, 12($sp)
+    addiu   $sp, $sp, 16
+    jr      $ra
+
+# -----------------------------------------------------------------------
+# EVAL_EXPR - Evaluate an expression (currently delegates to EVAL_TERM)
+# -----------------------------------------------------------------------
+# Description:
+#   Evaluates an expression. Currently handles terms via EVAL_TERM.
+#   Will be expanded to handle addition and subtraction.
 #
 # Input: None (reads from MEM_TOKEN_PTR)
 # Output: $v0 = evaluated value
 # -----------------------------------------------------------------------
 EVAL_EXPR:
-    j       EVAL_FACTOR
+    j       EVAL_TERM
