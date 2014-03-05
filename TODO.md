@@ -23,7 +23,7 @@
 
 ## Phase 4: Mathematical Engine & Variables
 - [x] Variable storage initialization (`.data` section or dynamic heap): `VAR_INIT`
-- [ ] Variable access primitives: `VAR_GET`, `VAR_SET`
+- [x] Variable access primitives: `VAR_GET`, `VAR_SET`
 - [ ] 16-bit unsigned multiplication: `MUL16` (using MIPS native `mult` / `mflo`)
 - [ ] 16-bit unsigned division and modulo: `DIV16`, `MOD16` (using MIPS native `div` / `mflo` / `mfhi`)
 
