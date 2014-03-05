@@ -30,7 +30,7 @@
 ## Phase 5: Expression Evaluator (Recursive Descent Parser)
 - [x] `EVAL_FACTOR`: Handle numeric literals, variables, parentheses, and unary minus
 - [x] `EVAL_TERM`: Multiplication and division (`*`, `/`)
-- [ ] `EVAL_EXPR`: Addition and subtraction (`+`, `-`)
+- [x] `EVAL_EXPR`: Addition and subtraction (`+`, `-`)
 - [ ] `EVAL_COND`: Boolean comparisons (`=`, `<>`, `<`, `>`, `<=`, `>=`)
 
 ## Phase 6: Core Execution Engine

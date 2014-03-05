@@ -229,14 +229,59 @@ ET_DONE:
     jr      $ra
 
 # -----------------------------------------------------------------------
-# EVAL_EXPR - Evaluate an expression (currently delegates to EVAL_TERM)
+# EVAL_EXPR - Evaluate an expression (+, -)
 # -----------------------------------------------------------------------
 # Description:
-#   Evaluates an expression. Currently handles terms via EVAL_TERM.
-#   Will be expanded to handle addition and subtraction.
+#   Evaluates an expression by calling EVAL_TERM, then loops while the
+#   next token is '+' (43) or '-' (45), applying the operation.
 #
 # Input: None (reads from MEM_TOKEN_PTR)
-# Output: $v0 = evaluated value
+# Output: $v0 = evaluated value (32-bit signed)
+# Clobbers: $t0, $t1, $s0
 # -----------------------------------------------------------------------
 EVAL_EXPR:
-    j       EVAL_TERM
+    addiu   $sp, $sp, -12
+    sw      $ra, 8($sp)
+    sw      $s0, 4($sp)
+
+    jal     EVAL_TERM                # $v0 = first term
+    move    $s0, $v0                 # $s0 = accumulator
+
+EE_LOOP:
+    la      $t0, MEM_TOKEN_PTR
+    lw      $t0, 0($t0)
+    lb      $t1, 0($t0)              # Peek next token
+    andi    $t1, $t1, 0xFF
+
+    li      $t2, 43                  # '+'
+    beq     $t1, $t2, EE_ADD
+
+    li      $t2, 45                  # '-'
+    beq     $t1, $t2, EE_SUB
+
+    j       EE_DONE                  # No more + or -
+
+EE_ADD:
+    addiu   $t0, $t0, 1             # Skip '+' token
+    la      $t1, MEM_TOKEN_PTR
+    sw      $t0, 0($t1)
+
+    jal     EVAL_TERM                # $v0 = next term
+    addu    $s0, $s0, $v0
+    j       EE_LOOP
+
+EE_SUB:
+    addiu   $t0, $t0, 1             # Skip '-' token
+    la      $t1, MEM_TOKEN_PTR
+    sw      $t0, 0($t1)
+
+    jal     EVAL_TERM                # $v0 = next term
+    subu    $s0, $s0, $v0
+    j       EE_LOOP
+
+EE_DONE:
+    move    $v0, $s0
+    lw      $s0, 4($sp)
+    lw      $ra, 8($sp)
+    addiu   $sp, $sp, 12
+    jr      $ra
