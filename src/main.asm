@@ -30,8 +30,8 @@ HALT_LOOP:
 # REPL - Read-Eval-Print Loop
 # -----------------------------------------------------------------------
 # Description:
-#   Main interactive loop. Prompts the user, reads input, and loops.
-#   Tokenization and dispatch will be added in later phases.
+#   Main interactive loop. Prompts the user, reads input, tokenizes,
+#   and dispatches commands or stores program lines.
 # -----------------------------------------------------------------------
 REPL:
     # Print prompt "> "
@@ -41,8 +41,196 @@ REPL:
     # Read user input into MEM_INPUT_BUF
     jal     READ_LINE
 
-    # TODO: Phase 2 - Tokenize input
-    # TODO: Phase 6 - Dispatch commands
+    # Tokenize input into MEM_TOKEN_BUF
+    jal     TOKENIZE
+
+    # Dispatch command or store program line
+    jal     REPL_DISPATCH
 
     # Loop back to prompt
     j       REPL
+
+# -----------------------------------------------------------------------
+# REPL_DISPATCH - Dispatch tokenized input to command handlers
+# -----------------------------------------------------------------------
+# Description:
+#   Reads the first token from MEM_TOKEN_BUF and dispatches to the
+#   appropriate command handler. If the first token is a number (0xC0),
+#   treats the input as a program line to store.
+#
+# Input: None (reads MEM_TOKEN_BUF)
+# Output: None
+# Clobbers: $t0, $t1
+# -----------------------------------------------------------------------
+REPL_DISPATCH:
+    addiu   $sp, $sp, -4
+    sw      $ra, 0($sp)
+
+    la      $t0, MEM_TOKEN_BUF
+    lb      $t1, 0($t0)              # Read first token
+    andi    $t1, $t1, 0xFF
+
+    # Empty input?
+    beqz    $t1, RD_DONE
+
+    # Number token → program line storage
+    li      $t0, 0xC0
+    beq     $t1, $t0, RD_LINE_STORE
+
+    # Keyword dispatch
+    li      $t0, 0x80                # LET
+    beq     $t1, $t0, RD_LET
+    li      $t0, 0x81                # GOTO
+    beq     $t1, $t0, RD_GOTO
+    li      $t0, 0x82                # GOSUB
+    beq     $t1, $t0, RD_GOSUB
+    li      $t0, 0x83                # PRINT
+    beq     $t1, $t0, RD_PRINT
+    li      $t0, 0x84                # IF
+    beq     $t1, $t0, RD_IF
+    li      $t0, 0x85                # INPUT
+    beq     $t1, $t0, RD_INPUT
+    li      $t0, 0x86                # RETURN
+    beq     $t1, $t0, RD_RETURN
+    li      $t0, 0x87                # END
+    beq     $t1, $t0, RD_END
+    li      $t0, 0x88                # LIST
+    beq     $t1, $t0, RD_LIST
+    li      $t0, 0x89                # RUN
+    beq     $t1, $t0, RD_RUN
+    li      $t0, 0x8A                # NEW
+    beq     $t1, $t0, RD_NEW
+    li      $t0, 0x8B                # EXIT
+    beq     $t1, $t0, RD_EXIT
+    li      $t0, 0x8C                # REM
+    beq     $t1, $t0, RD_REM
+    li      $t0, 0xA0                # FREE
+    beq     $t1, $t0, RD_FREE
+
+    # Unknown command
+    la      $a0, MSG_ERROR
+    jal     PRINT_STR
+    j       RD_DONE
+
+RD_LINE_STORE:
+    jal     CMD_LINE_STORE
+    j       RD_OK
+
+RD_LET:
+    jal     CMD_LET
+    j       RD_DONE
+
+RD_GOTO:
+    jal     CMD_GOTO
+    j       RD_DONE
+
+RD_GOSUB:
+    jal     CMD_GOSUB
+    j       RD_DONE
+
+RD_PRINT:
+    jal     CMD_PRINT
+    j       RD_DONE
+
+RD_IF:
+    jal     CMD_IF
+    j       RD_DONE
+
+RD_INPUT:
+    jal     CMD_INPUT
+    j       RD_DONE
+
+RD_RETURN:
+    jal     CMD_RETURN
+    j       RD_DONE
+
+RD_END:
+    jal     CMD_END
+    j       RD_DONE
+
+RD_LIST:
+    jal     CMD_LIST
+    j       RD_DONE
+
+RD_RUN:
+    jal     CMD_RUN
+    j       RD_DONE
+
+RD_NEW:
+    jal     CMD_NEW
+    j       RD_OK
+
+RD_EXIT:
+    jal     CMD_EXIT
+    j       RD_DONE
+
+RD_REM:
+    j       RD_DONE
+
+RD_FREE:
+    jal     CMD_FREE
+    j       RD_DONE
+
+RD_OK:
+    la      $a0, MSG_OK
+    jal     PRINT_STR
+
+RD_DONE:
+    lw      $ra, 0($sp)
+    addiu   $sp, $sp, 4
+    jr      $ra
+
+# -----------------------------------------------------------------------
+# CMD_LINE_STORE - Store a program line from tokenized input
+# -----------------------------------------------------------------------
+# Description:
+#   Extracts line number from first token (0xC0 + 16-bit LE), shifts
+#   remaining tokens to the front of MEM_TOKEN_BUF, and calls LINE_STORE.
+# -----------------------------------------------------------------------
+CMD_LINE_STORE:
+    la      $t0, MEM_TOKEN_BUF
+    # Skip 0xC0 token + 2-byte line number
+    addiu   $t0, $t0, 3
+
+    # Read line number (16-bit LE) from after the 0xC0 token
+    la      $t1, MEM_TOKEN_BUF
+    lb      $t2, 1($t1)
+    andi    $t2, $t2, 0xFF
+    lb      $t3, 2($t1)
+    andi    $t3, $t3, 0xFF
+    sll     $t3, $t3, 8
+    or      $a0, $t2, $t3           # $a0 = line number
+
+    # Shift remaining tokens to front of MEM_TOKEN_BUF
+    la      $t1, MEM_TOKEN_BUF
+CLS_SHIFT:
+    lb      $t2, 0($t0)
+    sb      $t2, 0($t1)
+    addiu   $t0, $t0, 1
+    addiu   $t1, $t1, 1
+    bnez    $t2, CLS_SHIFT
+
+    jal     LINE_STORE
+    jr      $ra
+
+# -----------------------------------------------------------------------
+# Command stubs (to be implemented in Phase 6-8)
+# -----------------------------------------------------------------------
+CMD_LET:
+CMD_PRINT:
+CMD_IF:
+CMD_INPUT:
+CMD_GOTO:
+CMD_GOSUB:
+CMD_RETURN:
+CMD_END:
+CMD_RUN:
+CMD_FREE:
+    jr      $ra
+
+CMD_NEW:
+    jr      $ra
+
+CMD_EXIT:
+    li      $v0, 10
+    syscall
