@@ -285,3 +285,118 @@ EE_DONE:
     lw      $ra, 8($sp)
     addiu   $sp, $sp, 12
     jr      $ra
+
+# -----------------------------------------------------------------------
+# EVAL_COND - Evaluate a boolean comparison condition
+# -----------------------------------------------------------------------
+# Description:
+#   Evaluates a condition by evaluating left expression, then checking
+#   for a comparison operator, then evaluating the right expression.
+#   Returns -1 (true) or 0 (false) following BASIC convention.
+#   If no comparison operator is found, returns the expression value.
+#
+#   Operators: = (61), < (60), > (62), <> (0xB0), <= (0xB1), >= (0xB2)
+#
+# Input: None (reads from MEM_TOKEN_PTR)
+# Output: $v0 = -1 (true) or 0 (false)
+# Clobbers: $t0, $t1, $t2, $s0, $s1, $s2
+# -----------------------------------------------------------------------
+EVAL_COND:
+    addiu   $sp, $sp, -20
+    sw      $ra, 16($sp)
+    sw      $s0, 12($sp)
+    sw      $s1, 8($sp)
+    sw      $s2, 4($sp)
+
+    # Evaluate left-hand expression
+    jal     EVAL_EXPR
+    move    $s0, $v0                 # $s0 = left value
+
+    # Peek at next token
+    la      $t0, MEM_TOKEN_PTR
+    lw      $t0, 0($t0)
+    lb      $t1, 0($t0)
+    andi    $t1, $t1, 0xFF
+
+    # Check for comparison operators
+    li      $t2, 61                  # '='
+    beq     $t1, $t2, EC_EQ
+    li      $t2, 60                  # '<'
+    beq     $t1, $t2, EC_LT
+    li      $t2, 62                  # '>'
+    beq     $t1, $t2, EC_GT
+    li      $t2, 0xB0                # '<>'
+    beq     $t1, $t2, EC_NE
+    li      $t2, 0xB1                # '<='
+    beq     $t1, $t2, EC_LE
+    li      $t2, 0xB2                # '>='
+    beq     $t1, $t2, EC_GE
+
+    # No comparison operator: return expression value as-is
+    j       EC_DONE
+
+    # --- Common: skip operator token, evaluate right expr ---
+EC_EQ:
+    addiu   $t0, $t0, 1
+    la      $t2, MEM_TOKEN_PTR
+    sw      $t0, 0($t2)
+    jal     EVAL_EXPR
+    xor     $t0, $s0, $v0            # equal if XOR == 0
+    sltiu   $v0, $t0, 1              # $v0 = (XOR == 0) ? 1 : 0
+    j       EC_TRUE_CHECK
+
+EC_NE:
+    addiu   $t0, $t0, 1
+    la      $t2, MEM_TOKEN_PTR
+    sw      $t0, 0($t2)
+    jal     EVAL_EXPR
+    xor     $t0, $s0, $v0
+    sltu    $v0, $zero, $t0          # $v0 = (XOR != 0) ? 1 : 0
+    j       EC_TRUE_CHECK
+
+EC_LT:
+    addiu   $t0, $t0, 1
+    la      $t2, MEM_TOKEN_PTR
+    sw      $t0, 0($t2)
+    jal     EVAL_EXPR
+    slt     $v0, $s0, $v0            # $v0 = (left < right) ? 1 : 0
+    j       EC_TRUE_CHECK
+
+EC_GT:
+    addiu   $t0, $t0, 1
+    la      $t2, MEM_TOKEN_PTR
+    sw      $t0, 0($t2)
+    jal     EVAL_EXPR
+    slt     $v0, $v0, $s0            # $v0 = (right < left) ? 1 : 0
+    j       EC_TRUE_CHECK
+
+EC_LE:
+    addiu   $t0, $t0, 1
+    la      $t2, MEM_TOKEN_PTR
+    sw      $t0, 0($t2)
+    jal     EVAL_EXPR
+    slt     $t0, $v0, $s0            # $t0 = (right < left)
+    xori    $v0, $t0, 1              # $v0 = !(right < left) = left <= right
+    j       EC_TRUE_CHECK
+
+EC_GE:
+    addiu   $t0, $t0, 1
+    la      $t2, MEM_TOKEN_PTR
+    sw      $t0, 0($t2)
+    jal     EVAL_EXPR
+    slt     $t0, $s0, $v0            # $t0 = (left < right)
+    xori    $v0, $t0, 1              # $v0 = !(left < right) = left >= right
+    j       EC_TRUE_CHECK
+
+EC_TRUE_CHECK:
+    # Convert 1 → -1 (BASIC true), keep 0 as-is
+    beqz    $v0, EC_DONE
+    li      $v0, -1
+
+EC_DONE:
+    lw      $s2, 4($sp)
+    lw      $s1, 8($sp)
+    lw      $s0, 12($sp)
+    lw      $ra, 16($sp)
+    addiu   $sp, $sp, 20
+    jr      $ra
