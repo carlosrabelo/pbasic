@@ -38,7 +38,7 @@
 - [x] `PRINT`: Output expressions, string literals, handling `,` (tabs) and `;` (no newline)
 - [x] `LET`: Assign evaluated expressions to variables
 - [x] `NEW`: Clear the program linked list and variables
-- [ ] `REM`: Ignore the remainder of the line
+- [x] `REM`: Ignore the remainder of the line
 - [ ] `FREE`: Calculate available bytes between the program end and stack/variable space
 
 ## Phase 7: Control Flow
