@@ -388,6 +388,9 @@ CMD_GOTO:
 CMD_GOSUB:
 CMD_RETURN:
 CMD_END:
+    li      $t0, 0
+    la      $t1, MEM_RUN_FLAG
+    sw      $t0, 0($t1)               # Clear RUN_FLAG to stop execution
     jr      $ra
 
 # -----------------------------------------------------------------------
