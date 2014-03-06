@@ -383,6 +383,77 @@ CP_DONE:
     jr      $ra
 
 CMD_IF:
+    addiu   $sp, $sp, -8
+    sw      $ra, 4($sp)
+    sw      $s0, 0($sp)
+
+    # Set MEM_TOKEN_PTR to token after IF (offset 1)
+    la      $t0, MEM_TOKEN_BUF
+    addiu   $t0, $t0, 1
+    la      $t1, MEM_TOKEN_PTR
+    sw      $t0, 0($t1)
+
+    # Evaluate condition (stops at THEN or end)
+    jal     EVAL_COND
+    move    $s0, $v0                  # $s0 = condition result (-1 or 0)
+
+    # Expect THEN (0x8D) and skip it
+    la      $t0, MEM_TOKEN_PTR
+    lw      $t0, 0($t0)
+    lb      $t1, 0($t0)
+    andi    $t1, $t1, 0xFF
+    li      $t2, 0x8D
+    bne     $t1, $t2, CI_DONE         # No THEN found
+    addiu   $t0, $t0, 1
+    la      $t1, MEM_TOKEN_PTR
+    sw      $t0, 0($t1)
+
+    # Check condition result
+    beqz    $s0, CI_DONE              # False → skip
+
+    # True → check what follows THEN
+    la      $t0, MEM_TOKEN_PTR
+    lw      $t0, 0($t0)
+    lb      $t1, 0($t0)
+    andi    $t1, $t1, 0xFF
+
+    # If number token (0xC0) → GOTO that line
+    li      $t2, 0xC0
+    beq     $t1, $t2, CI_GOTO
+
+    # Otherwise: copy remaining tokens to front of MEM_TOKEN_BUF and dispatch
+    la      $t1, MEM_TOKEN_BUF
+CI_COPY:
+    lb      $t2, 0($t0)
+    sb      $t2, 0($t1)
+    addiu   $t0, $t0, 1
+    addiu   $t1, $t1, 1
+    bnez    $t2, CI_COPY
+
+    jal     REPL_DISPATCH
+    j       CI_DONE
+
+CI_GOTO:
+    # Read line number after 0xC0
+    lb      $t2, 1($t0)
+    andi    $t2, $t2, 0xFF
+    lb      $t3, 2($t0)
+    andi    $t3, $t3, 0xFF
+    sll     $t3, $t3, 8
+    or      $a0, $t2, $t3
+
+    jal     LINE_FIND
+
+    beqz    $v0, CI_DONE
+    la      $t0, MEM_LINE_PTR
+    sw      $v0, 0($t0)
+
+CI_DONE:
+    lw      $s0, 0($sp)
+    lw      $ra, 4($sp)
+    addiu   $sp, $sp, 8
+    jr      $ra
+
 CMD_INPUT:
 CMD_GOTO:
     addiu   $sp, $sp, -4
