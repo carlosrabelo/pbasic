@@ -216,7 +216,42 @@ CLS_SHIFT:
 # -----------------------------------------------------------------------
 # Command stubs (to be implemented in Phase 6-8)
 # -----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+# CMD_LET - Execute LET command (assign expression to variable)
+# -----------------------------------------------------------------------
+# Description:
+#   Token stream after LET (0x80): variable (0xD0-0xE9), '=' (61), expr.
+#   Sets MEM_TOKEN_PTR to the variable token, evaluates the expression
+#   after '=', and stores the result via VAR_SET.
+# -----------------------------------------------------------------------
 CMD_LET:
+    addiu   $sp, $sp, -8
+    sw      $ra, 4($sp)
+    sw      $s0, 0($sp)
+
+    # Token 1 = variable (offset 1)
+    la      $t0, MEM_TOKEN_BUF
+    lb      $s0, 1($t0)              # $s0 = variable token
+    andi    $s0, $s0, 0xFF
+
+    # Token 2 = '=' (offset 2), skip it
+    # Token 3+ = expression (offset 3)
+    la      $t0, MEM_TOKEN_BUF
+    addiu   $t0, $t0, 3
+    la      $t1, MEM_TOKEN_PTR
+    sw      $t0, 0($t1)
+
+    # Evaluate expression
+    jal     EVAL_EXPR
+
+    # Store result in variable
+    move    $a0, $s0
+    move    $a1, $v0
+    jal     VAR_SET
+
+    lw      $s0, 0($sp)
+    lw      $ra, 4($sp)
+    addiu   $sp, $sp, 8
     jr      $ra
 
 # -----------------------------------------------------------------------
