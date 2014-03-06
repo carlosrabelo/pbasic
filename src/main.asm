@@ -393,6 +393,12 @@ CMD_FREE:
     jr      $ra
 
 CMD_NEW:
+    addiu   $sp, $sp, -4
+    sw      $ra, 0($sp)
+    jal     PROG_INIT
+    jal     VAR_INIT
+    lw      $ra, 0($sp)
+    addiu   $sp, $sp, 4
     jr      $ra
 
 CMD_EXIT:
