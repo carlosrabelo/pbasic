@@ -413,7 +413,111 @@ CG_DONE:
     addiu   $sp, $sp, 4
     jr      $ra
 CMD_GOSUB:
+    addiu   $sp, $sp, -4
+    sw      $ra, 0($sp)
+
+    # Check stack depth (max 16)
+    la      $t0, MEM_GOSUB_SP
+    lw      $t0, 0($t0)
+    li      $t1, 16
+    bge     $t0, $t1, CGS_OVERFLOW
+
+    # Push return address (next line after current) onto GOSUB stack
+    la      $t1, MEM_LINE_PTR
+    lw      $t1, 0($t1)              # $t1 = current line
+
+    # Advance to next line
+    move    $t2, $t1
+    addiu   $t2, $t2, 2              # Skip line number header
+CGS_SKIP:
+    lb      $t3, 0($t2)
+    addiu   $t2, $t2, 1
+    bnez    $t3, CGS_SKIP            # Skip past tokens + null
+    # $t2 = next line (return address)
+
+    # Store $t2 at GOSUB_STK[SP]
+    la      $t3, MEM_GOSUB_STK
+    sll     $t0, $t0, 2              # offset = SP * 4
+    addu    $t3, $t3, $t0
+    sw      $t2, 0($t3)
+
+    # SP++
+    la      $t0, MEM_GOSUB_SP
+    lw      $t1, 0($t0)
+    addiu   $t1, $t1, 1
+    sw      $t1, 0($t0)
+
+    # Now jump like GOTO: read target line number
+    la      $t0, MEM_TOKEN_BUF
+    lb      $t1, 1($t0)
+    andi    $t1, $t1, 0xFF
+    li      $t2, 0xC0
+    bne     $t1, $t2, CGS_DONE
+
+    lb      $t2, 2($t0)
+    andi    $t2, $t2, 0xFF
+    lb      $t3, 3($t0)
+    andi    $t3, $t3, 0xFF
+    sll     $t3, $t3, 8
+    or      $a0, $t2, $t3
+
+    jal     LINE_FIND
+
+    beqz    $v0, CGS_DONE
+    la      $t0, MEM_LINE_PTR
+    sw      $v0, 0($t0)
+
+    j       CGS_DONE
+
+CGS_OVERFLOW:
+    la      $a0, MSG_ERROR
+    jal     PRINT_STR
+    li      $t0, 0
+    la      $t1, MEM_RUN_FLAG
+    sw      $t0, 0($t1)
+
+CGS_DONE:
+    lw      $ra, 0($sp)
+    addiu   $sp, $sp, 4
+    jr      $ra
+
 CMD_RETURN:
+    addiu   $sp, $sp, -4
+    sw      $ra, 0($sp)
+
+    # Check stack not empty
+    la      $t0, MEM_GOSUB_SP
+    lw      $t0, 0($t0)
+    blez    $t0, CRT_UNDERFLOW
+
+    # SP--
+    addiu   $t0, $t0, -1
+    la      $t1, MEM_GOSUB_SP
+    sw      $t0, 0($t1)
+
+    # Pop return address from GOSUB_STK[SP]
+    la      $t1, MEM_GOSUB_STK
+    sll     $t0, $t0, 2
+    addu    $t1, $t1, $t0
+    lw      $t2, 0($t1)              # $t2 = return line pointer
+
+    # Set MEM_LINE_PTR to return address
+    la      $t0, MEM_LINE_PTR
+    sw      $t2, 0($t0)
+
+    j       CRT_DONE
+
+CRT_UNDERFLOW:
+    la      $a0, MSG_ERROR
+    jal     PRINT_STR
+    li      $t0, 0
+    la      $t1, MEM_RUN_FLAG
+    sw      $t0, 0($t1)
+
+CRT_DONE:
+    lw      $ra, 0($sp)
+    addiu   $sp, $sp, 4
+    jr      $ra
 CMD_END:
     li      $t0, 0
     la      $t1, MEM_RUN_FLAG
