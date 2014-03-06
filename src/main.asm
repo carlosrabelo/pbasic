@@ -217,7 +217,136 @@ CLS_SHIFT:
 # Command stubs (to be implemented in Phase 6-8)
 # -----------------------------------------------------------------------
 CMD_LET:
+    jr      $ra
+
+# -----------------------------------------------------------------------
+# CMD_PRINT - Execute PRINT command
+# -----------------------------------------------------------------------
+# Description:
+#   Evaluates and prints a comma/semicolon-separated list of expressions
+#   and string literals. ',' triggers a tab (column width 14). ';' prints
+#   with no separator. Ends with newline unless last separator was ';' or ','.
+#
+#   Token stream after PRINT (0x83):
+#     0xC1 ... 0xC1  = string literal
+#     expression      = evaluated and printed as number
+#     44 (,)          = tab
+#     59 (;)          = no separator
+# -----------------------------------------------------------------------
 CMD_PRINT:
+    addiu   $sp, $sp, -12
+    sw      $ra, 8($sp)
+    sw      $s0, 4($sp)
+
+    # Set MEM_TOKEN_PTR to token after PRINT (offset 1 in MEM_TOKEN_BUF)
+    la      $t0, MEM_TOKEN_BUF
+    addiu   $t0, $t0, 1
+    la      $t1, MEM_TOKEN_PTR
+    sw      $t0, 0($t1)
+
+    li      $s0, 1                   # $s0 = 1 means print newline at end
+
+CP_LOOP:
+    # Peek current token
+    la      $t0, MEM_TOKEN_PTR
+    lw      $t0, 0($t0)
+    lb      $t1, 0($t0)
+    andi    $t1, $t1, 0xFF
+
+    # End of stream?
+    beqz    $t1, CP_END
+
+    # Check for separator tokens
+    li      $t2, 44                  # ','
+    beq     $t1, $t2, CP_COMMA
+    li      $t2, 59                  # ';'
+    beq     $t1, $t2, CP_SEMI
+
+    # Check for string literal (0xC1)
+    li      $t2, 0xC1
+    beq     $t1, $t2, CP_STRING
+
+    # Otherwise evaluate as expression and print number
+    jal     EVAL_EXPR
+    move    $a0, $v0
+    jal     PRINT_NUMBER
+    j       CP_LOOP
+
+CP_STRING:
+    # Skip 0xC1 start marker
+    la      $t0, MEM_TOKEN_PTR
+    lw      $t0, 0($t0)
+    addiu   $t0, $t0, 1
+    la      $t1, MEM_TOKEN_PTR
+    sw      $t0, 0($t1)
+
+CPS_LOOP:
+    la      $t0, MEM_TOKEN_PTR
+    lw      $t0, 0($t0)
+    lb      $t1, 0($t0)
+    andi    $t1, $t1, 0xFF
+
+    # End marker (0xC1) or null?
+    li      $t2, 0xC1
+    beq     $t1, $t2, CPS_CLOSE
+    beqz    $t1, CP_END
+
+    # Print character and advance
+    move    $a0, $t1
+    jal     OUTCHAR
+
+    la      $t0, MEM_TOKEN_PTR
+    lw      $t0, 0($t0)
+    addiu   $t0, $t0, 1
+    la      $t1, MEM_TOKEN_PTR
+    sw      $t0, 0($t1)
+    j       CPS_LOOP
+
+CPS_CLOSE:
+    # Skip 0xC1 end marker
+    la      $t0, MEM_TOKEN_PTR
+    lw      $t0, 0($t0)
+    addiu   $t0, $t0, 1
+    la      $t1, MEM_TOKEN_PTR
+    sw      $t0, 0($t1)
+    j       CP_LOOP
+
+CP_COMMA:
+    # Print tab (ASCII 9)
+    li      $a0, 9
+    jal     OUTCHAR
+    # Skip ',' token
+    la      $t0, MEM_TOKEN_PTR
+    lw      $t0, 0($t0)
+    addiu   $t0, $t0, 1
+    la      $t1, MEM_TOKEN_PTR
+    sw      $t0, 0($t1)
+    li      $s0, 0                   # Suppress newline
+    j       CP_LOOP
+
+CP_SEMI:
+    # Skip ';' token
+    la      $t0, MEM_TOKEN_PTR
+    lw      $t0, 0($t0)
+    addiu   $t0, $t0, 1
+    la      $t1, MEM_TOKEN_PTR
+    sw      $t0, 0($t1)
+    li      $s0, 0                   # Suppress newline
+    j       CP_LOOP
+
+CP_END:
+    bnez    $s0, CP_NEWLINE
+    j       CP_DONE
+
+CP_NEWLINE:
+    jal     PRINT_CRLF
+
+CP_DONE:
+    lw      $s0, 4($sp)
+    lw      $ra, 8($sp)
+    addiu   $sp, $sp, 12
+    jr      $ra
+
 CMD_IF:
 CMD_INPUT:
 CMD_GOTO:
