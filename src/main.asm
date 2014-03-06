@@ -455,6 +455,98 @@ CI_DONE:
     jr      $ra
 
 CMD_INPUT:
+    addiu   $sp, $sp, -8
+    sw      $ra, 4($sp)
+    sw      $s0, 0($sp)
+
+    # Set MEM_TOKEN_PTR after INPUT (offset 1)
+    la      $t0, MEM_TOKEN_BUF
+    addiu   $t0, $t0, 1
+    la      $t1, MEM_TOKEN_PTR
+    sw      $t0, 0($t1)
+
+    # Check if first item is a string literal (0xC1) → print as prompt
+    la      $t0, MEM_TOKEN_PTR
+    lw      $t0, 0($t0)
+    lb      $t1, 0($t0)
+    andi    $t1, $t1, 0xFF
+    li      $t2, 0xC1
+    bne     $t1, $t2, CI_NO_PROMPT
+
+    # Skip 0xC1 start marker
+    addiu   $t0, $t0, 1
+
+CI_PROMPT_LOOP:
+    lb      $t1, 0($t0)
+    andi    $t1, $t1, 0xFF
+    li      $t2, 0xC1
+    beq     $t1, $t2, CI_PROMPT_END
+    beqz    $t1, CI_NO_PROMPT
+
+    move    $a0, $t1
+    jal     OUTCHAR
+
+    la      $t0, MEM_TOKEN_PTR
+    lw      $t0, 0($t0)
+    addiu   $t0, $t0, 1
+    la      $t1, MEM_TOKEN_PTR
+    sw      $t0, 0($t1)
+    j       CI_PROMPT_LOOP
+
+CI_PROMPT_END:
+    # Skip 0xC1 end marker
+    la      $t0, MEM_TOKEN_PTR
+    lw      $t0, 0($t0)
+    addiu   $t0, $t0, 1
+    la      $t1, MEM_TOKEN_PTR
+    sw      $t0, 0($t1)
+
+    # Expect ';' separator, skip it
+    la      $t0, MEM_TOKEN_PTR
+    lw      $t0, 0($t0)
+    lb      $t1, 0($t0)
+    andi    $t1, $t1, 0xFF
+    li      $t2, 59                   # ';'
+    beq     $t1, $t2, CI_SKIP_SEMI
+    j       CI_READ
+
+CI_SKIP_SEMI:
+    addiu   $t0, $t0, 1
+    la      $t1, MEM_TOKEN_PTR
+    sw      $t0, 0($t1)
+    j       CI_READ
+
+CI_NO_PROMPT:
+    # Print "? " as default prompt
+    li      $a0, 63                   # '?'
+    jal     OUTCHAR
+    li      $a0, 32                   # ' '
+    jal     OUTCHAR
+
+CI_READ:
+    # Read the variable token
+    la      $t0, MEM_TOKEN_PTR
+    lw      $t0, 0($t0)
+    lb      $s0, 0($t0)              # $s0 = variable token
+    andi    $s0, $s0, 0xFF
+
+    # Read user input
+    jal     READ_LINE
+
+    # Parse the number from MEM_INPUT_BUF
+    la      $a0, MEM_INPUT_BUF
+    jal     PARSE_NUMBER              # $v0 = number, $v1 = advanced ptr
+
+    # Store in variable
+    move    $a0, $s0
+    move    $a1, $v0
+    jal     VAR_SET
+
+CI_INP_DONE:
+    lw      $s0, 0($sp)
+    lw      $ra, 4($sp)
+    addiu   $sp, $sp, 8
+    jr      $ra
 CMD_GOTO:
     addiu   $sp, $sp, -4
     sw      $ra, 0($sp)
