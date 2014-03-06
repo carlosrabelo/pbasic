@@ -388,7 +388,108 @@ CMD_GOTO:
 CMD_GOSUB:
 CMD_RETURN:
 CMD_END:
+    jr      $ra
+
+# -----------------------------------------------------------------------
+# CMD_RUN - Execute the program from the first line
+# -----------------------------------------------------------------------
+# Description:
+#   Traverses the program linked list from MEM_PROG_START, copying each
+#   line's tokens into MEM_TOKEN_BUF and dispatching via REPL_DISPATCH.
+#   Sets MEM_RUN_FLAG = 1. Stops at sentinel or when MEM_RUN_FLAG is
+#   cleared (by END, EXIT, or error).
+#   After dispatch, checks MEM_LINE_PTR for GOTO/GOSUB jumps: if the
+#   pointer changed during execution, continues from the new position.
+# -----------------------------------------------------------------------
 CMD_RUN:
+    addiu   $sp, $sp, -8
+    sw      $ra, 4($sp)
+    sw      $s0, 0($sp)
+
+    la      $t0, MEM_PROG_START
+    lb      $t1, 0($t0)
+    andi    $t1, $t1, 0xFF
+    bnez    $t1, CR_HAS_PROGRAM
+
+    la      $a0, MSG_NO_PROGRAM
+    jal     PRINT_STR
+    j       CR_DONE
+
+CR_HAS_PROGRAM:
+    li      $t0, 1
+    la      $t1, MEM_RUN_FLAG
+    sw      $t0, 0($t1)               # MEM_RUN_FLAG = 1
+
+    la      $s0, MEM_PROG_START       # $s0 = current line pointer
+
+CR_LOOP:
+    # Check RUN_FLAG
+    la      $t0, MEM_RUN_FLAG
+    lw      $t0, 0($t0)
+    beqz    $t0, CR_DONE
+
+    # Read line number (16-bit LE) — check for sentinel
+    lb      $t0, 0($s0)
+    andi    $t0, $t0, 0xFF
+    lb      $t1, 1($s0)
+    andi    $t1, $t1, 0xFF
+    sll     $t1, $t1, 8
+    or      $t2, $t0, $t1
+    beqz    $t2, CR_DONE              # Sentinel reached
+
+    # Set MEM_LINE_PTR to current line
+    la      $t0, MEM_LINE_PTR
+    sw      $s0, 0($t0)
+
+    # Copy tokens (after 2-byte header) into MEM_TOKEN_BUF
+    la      $t0, MEM_TOKEN_BUF
+    addiu   $t1, $s0, 2               # Source = line tokens
+CR_COPY:
+    lb      $t2, 0($t1)
+    sb      $t2, 0($t0)
+    beqz    $t2, CR_COPY_DONE
+    addiu   $t0, $t0, 1
+    addiu   $t1, $t1, 1
+    j       CR_COPY
+
+CR_COPY_DONE:
+    # Dispatch the command
+    jal     REPL_DISPATCH
+
+    # Check RUN_FLAG again (END/EXIT may have cleared it)
+    la      $t0, MEM_RUN_FLAG
+    lw      $t0, 0($t0)
+    beqz    $t0, CR_DONE
+
+    # Check if MEM_LINE_PTR was changed (GOTO/GOSUB jumped)
+    la      $t0, MEM_LINE_PTR
+    lw      $t0, 0($t0)
+    bne     $t0, $s0, CR_JUMPED
+
+    # Advance to next line
+    addiu   $t0, $s0, 2               # Skip line number
+CR_ADVANCE:
+    lb      $t1, 0($t0)
+    addiu   $t0, $t0, 1
+    bnez    $t1, CR_ADVANCE           # Skip past tokens + null
+
+    move    $s0, $t0                   # $s0 = next line
+    j       CR_LOOP
+
+CR_JUMPED:
+    move    $s0, $t0                   # Continue from jumped-to line
+    j       CR_LOOP
+
+CR_DONE:
+    li      $t0, 0
+    la      $t1, MEM_RUN_FLAG
+    sw      $t0, 0($t1)               # MEM_RUN_FLAG = 0
+
+    lw      $s0, 0($sp)
+    lw      $ra, 4($sp)
+    addiu   $sp, $sp, 8
+    jr      $ra
+
 CMD_FREE:
     addiu   $sp, $sp, -4
     sw      $ra, 0($sp)

@@ -42,7 +42,7 @@
 - [x] `FREE`: Calculate available bytes between the program end and stack/variable space
 
 ## Phase 7: Control Flow
-- [ ] `RUN`: Traverse the linked list and dispatch tokens sequentially
+- [x] `RUN`: Traverse the linked list and dispatch tokens sequentially
 - [ ] `END` and `EXIT`: Halt execution cleanly
 - [ ] `GOTO`: Unconditional jump by updating the line pointer
 - [ ] `GOSUB` and `RETURN`: Subroutine calls using an internal call stack
