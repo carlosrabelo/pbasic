@@ -39,7 +39,7 @@
 - [x] `LET`: Assign evaluated expressions to variables
 - [x] `NEW`: Clear the program linked list and variables
 - [x] `REM`: Ignore the remainder of the line
-- [ ] `FREE`: Calculate available bytes between the program end and stack/variable space
+- [x] `FREE`: Calculate available bytes between the program end and stack/variable space
 
 ## Phase 7: Control Flow
 - [ ] `RUN`: Traverse the linked list and dispatch tokens sequentially

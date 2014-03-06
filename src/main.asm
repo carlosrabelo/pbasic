@@ -390,6 +390,20 @@ CMD_RETURN:
 CMD_END:
 CMD_RUN:
 CMD_FREE:
+    addiu   $sp, $sp, -4
+    sw      $ra, 0($sp)
+
+    # Available = (MEM_PROG_START + 1024) - MEM_PROG_END
+    la      $t0, MEM_PROG_START
+    addiu   $t0, $t0, 1024          # $t0 = end of program area
+    la      $t1, MEM_PROG_END
+    lw      $t1, 0($t1)             # $t1 = current program end
+    subu    $a0, $t0, $t1           # $a0 = free bytes
+    jal     PRINT_NUMBER
+    jal     PRINT_CRLF
+
+    lw      $ra, 0($sp)
+    addiu   $sp, $sp, 4
     jr      $ra
 
 CMD_NEW:
