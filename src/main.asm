@@ -385,6 +385,33 @@ CP_DONE:
 CMD_IF:
 CMD_INPUT:
 CMD_GOTO:
+    addiu   $sp, $sp, -4
+    sw      $ra, 0($sp)
+
+    # Read line number token after GOTO (offset 1 = 0xC0, offset 2-3 = LE number)
+    la      $t0, MEM_TOKEN_BUF
+    lb      $t1, 1($t0)
+    andi    $t1, $t1, 0xFF
+    li      $t2, 0xC0
+    bne     $t1, $t2, CG_DONE         # Not a number token
+
+    lb      $t2, 2($t0)
+    andi    $t2, $t2, 0xFF
+    lb      $t3, 3($t0)
+    andi    $t3, $t3, 0xFF
+    sll     $t3, $t3, 8
+    or      $a0, $t2, $t3             # $a0 = target line number
+
+    jal     LINE_FIND
+
+    beqz    $v0, CG_DONE              # Line not found
+    la      $t0, MEM_LINE_PTR
+    sw      $v0, 0($t0)               # Update MEM_LINE_PTR to found line
+
+CG_DONE:
+    lw      $ra, 0($sp)
+    addiu   $sp, $sp, 4
+    jr      $ra
 CMD_GOSUB:
 CMD_RETURN:
 CMD_END:
