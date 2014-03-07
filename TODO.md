@@ -50,7 +50,7 @@
 
 ## Phase 8: Advanced Functions & Interactivity
 - [x] `INPUT`: Pause execution, read from TTY, and assign to variable
-- [ ] `RND(x)`: Linear congruential pseudo-random number generator
+- [x] `RND(x)`: Linear congruential pseudo-random number generator
 - [ ] `ABS(x)`: Calculate absolute value (using MIPS `abs` macro)
 
 

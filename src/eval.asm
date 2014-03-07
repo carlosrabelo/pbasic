@@ -21,9 +21,10 @@
 # Clobbers: $t0, $t1, $t2, $t3
 # -----------------------------------------------------------------------
 EVAL_FACTOR:
-    addiu   $sp, $sp, -16
-    sw      $ra, 12($sp)
-    sw      $s0, 8($sp)
+    addiu   $sp, $sp, -20
+    sw      $ra, 16($sp)
+    sw      $s0, 12($sp)
+    sw      $s1, 8($sp)
 
     la      $t0, MEM_TOKEN_PTR
     lw      $t0, 0($t0)              # $t0 = current token pointer
@@ -50,6 +51,10 @@ EF_CHECK_PAREN:
     # --- Parenthesized expression ---
     li      $t2, 40                   # '('
     beq     $t1, $t2, EF_PAREN
+
+    # --- RND function (0xA1) ---
+    li      $t2, 0xA1
+    beq     $t1, $t2, EF_RND
 
     # --- ABS function (0xA2) ---
     li      $t2, 0xA2
@@ -116,6 +121,67 @@ EF_PAREN_END:
     move    $v0, $s0
     j       EF_DONE
 
+EF_RND:
+    addiu   $t0, $t0, 1             # Skip RND token
+    la      $t2, MEM_TOKEN_PTR
+    sw      $t0, 0($t2)
+
+    # Expect '('
+    la      $t0, MEM_TOKEN_PTR
+    lw      $t0, 0($t0)
+    lb      $t1, 0($t0)
+    andi    $t1, $t1, 0xFF
+    li      $t2, 40                  # '('
+    beq     $t1, $t2, ER_PAREN
+
+    # No paren: use default range 32767
+    li      $s1, 32767
+    j       ER_COMPUTE
+
+ER_PAREN:
+    addiu   $t0, $t0, 1
+    la      $t2, MEM_TOKEN_PTR
+    sw      $t0, 0($t2)
+    jal     EVAL_EXPR
+    move    $s1, $v0                 # $s1 = range (x)
+
+    # Expect ')'
+    la      $t0, MEM_TOKEN_PTR
+    lw      $t0, 0($t0)
+    lb      $t1, 0($t0)
+    andi    $t1, $t1, 0xFF
+    li      $t2, 41                  # ')'
+    beq     $t1, $t2, ER_CLOSE
+    j       ER_COMPUTE
+
+ER_CLOSE:
+    addiu   $t0, $t0, 1
+    la      $t2, MEM_TOKEN_PTR
+    sw      $t0, 0($t2)
+
+ER_COMPUTE:
+    # LCG: seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
+    la      $t0, MEM_RAND_SEED
+    lw      $t0, 0($t0)              # $t0 = current seed
+
+    li      $t2, 1103515245
+    mult    $t0, $t2                  # HI:LO = seed * 1103515245
+    mflo    $t0
+    li      $t2, 12345
+    addu    $t0, $t0, $t2            # + 12345
+    li      $t2, 0x7FFFFFFF
+    and     $t0, $t0, $t2            # & 0x7FFFFFFF
+
+    # Save new seed
+    la      $t2, MEM_RAND_SEED
+    sw      $t0, 0($t2)
+
+    # result = seed % (range + 1)
+    addiu   $t2, $s1, 1              # range + 1
+    div     $t0, $t2
+    mfhi    $v0                      # $v0 = seed % (range+1)
+    j       EF_DONE
+
 EF_ABS:
     addiu   $t0, $t0, 1             # Skip ABS token
     la      $t2, MEM_TOKEN_PTR
@@ -158,9 +224,10 @@ EF_ABS_DO:
     j       EF_DONE
 
 EF_DONE:
-    lw      $s0, 8($sp)
-    lw      $ra, 12($sp)
-    addiu   $sp, $sp, 16
+    lw      $s1, 8($sp)
+    lw      $s0, 12($sp)
+    lw      $ra, 16($sp)
+    addiu   $sp, $sp, 20
     jr      $ra
 
 # -----------------------------------------------------------------------
