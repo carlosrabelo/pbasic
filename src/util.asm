@@ -36,11 +36,11 @@ MK_END_CHECK:
     li      $t3, 65             # 'A'
     slt     $t3, $t2, $t3
     bne     $t3, $zero, MK_SUCCESS # Less than 'A' is valid boundary (e.g., space, punct)
-
+    
     li      $t3, 90             # 'Z'
     slt     $t3, $t3, $t2
     bne     $t3, $zero, MK_SUCCESS # Greater than 'Z' is valid boundary
-
+    
     # If it's another letter (A-Z), it's a partial match (e.g., PRINTER vs PRINT).
     j       MK_FAIL
 
@@ -85,7 +85,7 @@ PN_LOOP:
     bne     $t3, $zero, PN_DONE   # If > '9', finished parsing digits
 
     addiu   $t1, $t1, -48       # Convert ASCII to integer value
-
+    
     # Accumulator = Accumulator * 10 + digit
     li      $t3, 10
     mult    $v0, $t3

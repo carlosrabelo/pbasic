@@ -18,6 +18,9 @@ TOKENIZE:
 
 TOK_LOOP:
     # 1. Skip spaces
+    # Call SKIP_SPACES inline or via subroutine. For simplicity in MIPS, 
+    # we can do it inline or as a separate subroutine block.
+    # We will jump to a local loop to skip spaces.
 TOK_SKIP_SPACES:
     lb      $t2, 0($t0)             # Load current character
     li      $t3, 32                 # ASCII for space (' ')
@@ -26,41 +29,42 @@ TOK_SKIP_SPACES:
     j       TOK_SKIP_SPACES         # Loop back
 
 TOK_CHECK_CHAR:
+    # Read current character again (it's already in $t2, but just to be sure)
     lb      $t2, 0($t0)
-
+    
     # Is it null (end of string)?
     beqz    $t2, TOK_DONE           # If so, finish tokenization
 
     # Is it a quote (start of string literal)?
     li      $t3, 34                 # ASCII for '"'
-    beq     $t2, $t3, TOK_STRING
+    beq     $t2, $t3, TOK_STRING    # If so, handle string tokenization (STUB)
 
     # Is it a digit ('0'-'9')?
     li      $t3, 48                 # '0'
-    slt     $t3, $t2, $t3           # If $t2 < '0', $t3 = 1
-    bnez    $t3, TOK_NOTNUM
+    slt     $t3, $t2, $t3           # If $t2 < $t3, $t3 = 1, else 0
+    bnez    $t3, TOK_NOTNUM         # If $t2 < '0', not a number
     li      $t3, 57                 # '9'
-    slt     $t3, $t3, $t2           # If $t2 > '9', $t3 = 1
-    bnez    $t3, TOK_NOTNUM
-    j       TOK_NUMBER
+    slt     $t3, $t3, $t2           # If $t3 < $t2 (i.e. $t2 > '9'), $t3 = 1
+    bnez    $t3, TOK_NOTNUM         # If $t2 > '9', not a number
+    j       TOK_NUMBER              # It's a number (STUB)
 
 TOK_NOTNUM:
     # Is it a letter ('A'-'Z')?
     # Note: READ_LINE already converts lowercase to uppercase.
     li      $t3, 65                 # 'A'
-    slt     $t3, $t2, $t3
-    bnez    $t3, TOK_NOTLETTER
+    slt     $t3, $t2, $t3           # If $t2 < $t3, $t3 = 1
+    bnez    $t3, TOK_NOTLETTER      # If < 'A', not a letter
     li      $t3, 90                 # 'Z'
-    slt     $t3, $t3, $t2
-    bnez    $t3, TOK_NOTLETTER
-    j       TOK_LETTER
+    slt     $t3, $t3, $t2           # If 90 < $t2 (i.e. $t2 > 'Z'), $t3 = 1
+    bnez    $t3, TOK_NOTLETTER      # If > 'Z', not a letter
+    j       TOK_LETTER              # It's a letter (STUB)
 
 TOK_NOTLETTER:
     # Handle specific operators
     li      $t3, 60                 # '<'
-    beq     $t2, $t3, TOK_LT
+    beq     $t2, $t3, TOK_LT        # Handle potential '<>' or '<=' (STUB)
     li      $t3, 62                 # '>'
-    beq     $t2, $t3, TOK_GT
+    beq     $t2, $t3, TOK_GT        # Handle potential '>=' (STUB)
 
     # If it's none of the above (e.g., '+', '-', '*', '/', '=', '(', ')', ';', ','),
     # it's a single-character ASCII token. Store it literally.
@@ -74,9 +78,16 @@ TOK_DONE:
     jr      $ra                     # Return to caller
 
 # -----------------------------------------------------------------------
-# TOK_NUMBER - Parse a decimal number and emit 0xC0 + 16-bit LE value
+# STUBS for future implementation
 # -----------------------------------------------------------------------
+
 TOK_NUMBER:
+    # Use $ra saving because we call PARSE_NUMBER
+    # Wait, TOKENIZE is currently not saving $ra.
+    # It must save $ra at the beginning, but since we are doing a quick replace,
+    # let's just make sure we handle it. Actually, TOKENIZE is called from main via jal,
+    # so we must save $ra. We'll do it by pushing to stack.
+    
     # Write number token prefix (0xC0)
     li      $t3, 0xC0
     sb      $t3, 0($t1)
@@ -84,27 +95,27 @@ TOK_NUMBER:
 
     # Call PARSE_NUMBER
     move    $a0, $t0            # $a0 = input pointer
-
+    
     # Save required registers
     addiu   $sp, $sp, -16
     sw      $ra, 12($sp)
     sw      $t0, 8($sp)
     sw      $t1, 4($sp)
-
+    
     jal     PARSE_NUMBER
-
+    
     lw      $t1, 4($sp)
     lw      $t0, 8($sp)
     lw      $ra, 12($sp)
     addiu   $sp, $sp, 16
-
+    
     move    $t0, $v1            # Update input pointer
 
     # $v0 has the 16-bit number. Store as little-endian.
     andi    $t3, $v0, 0xFF      # Low byte
     sb      $t3, 0($t1)
     addiu   $t1, $t1, 1
-
+    
     srl     $t3, $v0, 8         # High byte
     andi    $t3, $t3, 0xFF
     sb      $t3, 0($t1)
@@ -112,9 +123,6 @@ TOK_NUMBER:
 
     j       TOK_LOOP
 
-# -----------------------------------------------------------------------
-# TOK_STRING - Parse a string literal and emit 0xC1 + chars + 0xC1
-# -----------------------------------------------------------------------
 TOK_STRING:
     addiu   $t0, $t0, 1         # Skip opening quote
     li      $t3, 0xC1           # String start token
@@ -140,10 +148,9 @@ TS_END:
     addiu   $t1, $t1, 1
     j       TOK_LOOP
 
-# -----------------------------------------------------------------------
-# TOK_LETTER - Try keyword match, otherwise emit variable token
-# -----------------------------------------------------------------------
 TOK_LETTER:
+    # Try MATCH_KEYWORD for each known keyword.
+    # To keep it simple, we use a macro-like block or sequential checks.
     addiu   $sp, $sp, -16
     sw      $ra, 12($sp)
     sw      $t0, 8($sp)
@@ -251,15 +258,15 @@ TOK_LETTER:
     jal     MATCH_KEYWORD
     bnez    $v0, TK_ABS_MATCH
 
-    # No keyword matched. It's a variable (A-Z → 0xD0-0xE9).
+    # No keyword matched. It's a variable.
     lw      $t1, 4($sp)
     lw      $t0, 8($sp)
     lw      $ra, 12($sp)
     addiu   $sp, $sp, 16
 
     lb      $t2, 0($t0)         # Read variable letter
-    addiu   $t2, $t2, -65       # Subtract 'A'
-    addiu   $t2, $t2, 0xD0      # Add base token for A
+    addiu   $t2, $t2, -65       # 'A'
+    addiu   $t2, $t2, 0xD0      # Base token for A
     sb      $t2, 0($t1)
     addiu   $t0, $t0, 1
     addiu   $t1, $t1, 1
@@ -293,7 +300,7 @@ TK_THEN_MATCH:
 TK_END_MATCH:
     li      $t3, 0x87
     j       TK_KW_STORE
-TK_REM_MATCH:
+TK_REM_MATCH:    
     # REM means ignore the rest of the line
     lw      $t1, 4($sp)
     lw      $t0, 8($sp)
@@ -337,9 +344,6 @@ TK_KW_STORE:
     addiu   $t1, $t1, 1
     j       TOK_LOOP
 
-# -----------------------------------------------------------------------
-# TOK_LT - Handle '<', '<>' and '<=' operators
-# -----------------------------------------------------------------------
 TOK_LT:
     addiu   $t0, $t0, 1         # Skip '<'
     lb      $t2, 0($t0)
@@ -347,7 +351,7 @@ TOK_LT:
     beq     $t2, $t3, TOK_NE
     li      $t3, 61             # '='
     beq     $t2, $t3, TOK_LE
-
+    
     # Just '<'
     li      $t3, 60
     sb      $t3, 0($t1)
@@ -368,15 +372,12 @@ TOK_LE:
     addiu   $t1, $t1, 1
     j       TOK_LOOP
 
-# -----------------------------------------------------------------------
-# TOK_GT - Handle '>' and '>=' operators
-# -----------------------------------------------------------------------
 TOK_GT:
     addiu   $t0, $t0, 1         # Skip '>'
     lb      $t2, 0($t0)
     li      $t3, 61             # '='
     beq     $t2, $t3, TOK_GE
-
+    
     # Just '>'
     li      $t3, 62
     sb      $t3, 0($t1)
@@ -389,3 +390,4 @@ TOK_GE:
     sb      $t3, 0($t1)
     addiu   $t1, $t1, 1
     j       TOK_LOOP
+

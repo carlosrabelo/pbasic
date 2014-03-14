@@ -53,4 +53,5 @@
 - [x] `RND(x)`: Linear congruential pseudo-random number generator
 - [x] `ABS(x)`: Calculate absolute value (using MIPS `abs` macro)
 
-
+## Phase 9: Codebase Refactoring
+- [x] Decompose monolithic files into modular structure by concern

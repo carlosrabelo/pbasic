@@ -23,6 +23,40 @@ INCHAR:
     jr      $ra             # Return to caller
 
 # -----------------------------------------------------------------------
+# CHECK_BREAK - Check if a break key (Ctrl+C, ESC, q, Q) is pressed (non-blocking)
+# -----------------------------------------------------------------------
+# Output:
+#   $v0 = 1 if break requested, 0 otherwise
+# Clobbers:
+#   $t0, $t1, $v0
+# -----------------------------------------------------------------------
+CHECK_BREAK:
+    lui     $t0, 0xFFFF         # $t0 = 0xFFFF0000 (Keyboard Receiver Control Register)
+    lw      $t1, 0($t0)         # Read the control word from MMIO
+    andi    $t1, $t1, 1         # Check bit 0 (ready bit)
+    beq     $t1, $zero, CB_NONE # If ready bit is 0, no key has been pressed
+
+    lw      $t1, 4($t0)         # Read the ASCII code from Keyboard Receiver Data Register (0xFFFF0004)
+
+    # Compare character against the cancel keys
+    addiu   $v0, $zero, 81      # $v0 = 81 (ASCII for 'Q')
+    beq     $t1, $v0, CB_YES
+    addiu   $v0, $zero, 113     # $v0 = 113 (ASCII for 'q')
+    beq     $t1, $v0, CB_YES
+    addiu   $v0, $zero, 27      # $v0 = 27 (ASCII for ESC)
+    beq     $t1, $v0, CB_YES
+    addiu   $v0, $zero, 3       # $v0 = 3 (ASCII for Ctrl+C)
+    beq     $t1, $v0, CB_YES
+
+CB_NONE:
+    add     $v0, $zero, $zero   # Return 0 (no break)
+    jr      $ra                 # Return
+
+CB_YES:
+    addiu   $v0, $zero, 1       # Return 1 (break requested)
+    jr      $ra                 # Return
+
+# -----------------------------------------------------------------------
 # OUTCHAR - Print a single character to the console
 # -----------------------------------------------------------------------
 # Description:
@@ -48,7 +82,7 @@ OUTCHAR:
 # Clobbers: $v0
 # -----------------------------------------------------------------------
 PRINT_STR:
-    li      $v0, 4          # MARS syscall 4: Print String
+    li      $v0, 4          # SPIM syscall 4: Print String
     syscall
     jr      $ra
 
@@ -63,7 +97,7 @@ PRINT_STR:
 # Clobbers: $v0
 # -----------------------------------------------------------------------
 PRINT_NUMBER:
-    li      $v0, 1          # MARS syscall 1: Print Integer
+    li      $v0, 1          # SPIM syscall 1: Print Integer
     syscall
     jr      $ra
 
@@ -79,7 +113,7 @@ PRINT_NUMBER:
 # -----------------------------------------------------------------------
 PRINT_CRLF:
     la      $a0, STR_CRLF
-    li      $v0, 4          # MARS syscall 4: Print String
+    li      $v0, 4          # SPIM syscall 4: Print String
     syscall
     jr      $ra
 
@@ -92,7 +126,7 @@ PRINT_CRLF:
 #
 # Input: None
 # Output: None
-# Clobbers: $v0, $a0, $a1, $t0, $t1, $t2, $t3, $t4, $t5
+# Clobbers: $v0, $a0, $a1, $t0, $t1
 # -----------------------------------------------------------------------
 
 READ_LINE:
@@ -102,30 +136,30 @@ READ_LINE:
     li      $t5, 1          # First character flag
 
 RL_CHAR_LOOP:
-    li      $v0, 12         # MARS syscall 12: Read Character
+    li      $v0, 12         # SPIM syscall 12: Read Character
     syscall                 # Character is returned in $v0
-
-    # Check for EOF (0 or -1 in MARS)
+    
+    # Check for EOF (0 or -1 in SPIM)
     beqz    $v0, RL_CHECK_EOF
     li      $t4, -1
     beq     $v0, $t4, RL_CHECK_EOF
-
+    
     # Clear first character flag
     move    $t5, $zero
-
+    
     # Check for newline (\n)
     beq     $v0, $t3, RL_EOF_OR_NL
-
+    
     # Ignore carriage return (\r, ASCII 13)
     li      $t4, 13
     beq     $v0, $t4, RL_CHAR_LOOP
-
+    
     # Store character if we have space
     beqz    $t2, RL_SKIP_STORE
     sb      $v0, 0($t0)
     addiu   $t0, $t0, 1
     addiu   $t2, $t2, -1
-
+    
 RL_SKIP_STORE:
     j       RL_CHAR_LOOP
 
@@ -135,14 +169,14 @@ RL_CHECK_EOF:
 
 RL_EOF_OR_NL:
     sb      $zero, 0($t0)   # Null-terminate the string
-
+    
     # Post-process: convert lowercase to uppercase
     la      $t0, MEM_INPUT_BUF
-
+    
 READ_LINE_LOOP:
     lb      $t1, 0($t0)
     beqz    $t1, READ_LINE_DONE
-
+    
     # Check if char is 'a'-'z' (97 to 122)
     li      $v0, 97
     slt     $a1, $t1, $v0
@@ -150,11 +184,11 @@ READ_LINE_LOOP:
     li      $v0, 122
     slt     $a1, $v0, $t1
     bne     $a1, $zero, READ_LINE_NEXT
-
+    
     # Convert to uppercase
     addiu   $t1, $t1, -32
     sb      $t1, 0($t0)
-
+    
 READ_LINE_NEXT:
     addiu   $t0, $t0, 1
     j       READ_LINE_LOOP
@@ -165,3 +199,21 @@ READ_LINE_DONE:
 READ_LINE_EOF:
     li      $v0, 10         # Exit syscall if EOF is encountered
     syscall
+
+# -----------------------------------------------------------------------
+# PRINT_OK - Print "OK" message (MSG_OK already contains newline)
+# Input:  None
+# Output: None
+# Clobbers: $v0, $a0
+# -----------------------------------------------------------------------
+PRINT_OK:
+    addiu   $sp, $sp, -4
+    sw      $ra, 0($sp)
+    
+    la      $a0, MSG_OK
+    jal     PRINT_STR
+    
+    lw      $ra, 0($sp)
+    addiu   $sp, $sp, 4
+    jr      $ra
+

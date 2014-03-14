@@ -1,7 +1,8 @@
 # defs.asm - Memory map and constants for PBasic MIPS
 # -----------------------------------------------------------------------
-# MIPS architecture utilizes standard MARS/QtSPIM memory segments.
-# Variables are stored as 32-bit words for native MIPS performance.
+# MIPS architecture utilizes standard MARS memory segments.
+# Variables are stored as 32-bit words for native MIPS performance, 
+# unlike the 16-bit variables in Z80/6502.
 
 .data
     # --- Data buffers ---
@@ -31,7 +32,7 @@
     STR_CRLF:       .asciiz "\n"
 
 # --- Constants ---
-# Constants are loaded directly via li/la instructions.
+# SPIM does not support .eqv. Constants should be loaded directly or managed differently.
 # GOSUB_DEPTH = 16
 # INPUT_BUF_LEN = 128
 # TOKEN_BUF_LEN = 160

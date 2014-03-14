@@ -77,7 +77,8 @@ PTO_NUM:
 
     sll     $t2, $t2, 8
     or      $a0, $t1, $t2       # $a0 = (high << 8) | low
-
+    
+    # Sign extend 16 to 32? No, memory addresses / line numbers are unsigned or small positive
     jal     PRINT_NUMBER
     j       PTO_LOOP
 
@@ -89,7 +90,7 @@ PTO_SL:
     lb      $t1, 0($s0)
     andi    $t1, $t1, 0xFF
     addiu   $s0, $s0, 1
-
+    
     li      $t2, 0xC1
     beq     $t1, $t2, PTO_SE    # End of string
     beqz    $t1, PTO_DONE       # Abort safely
@@ -119,14 +120,14 @@ PRINT_KEYWORD:
     sw      $s0, 8($sp)
 
     move    $s0, $a0            # Save token
-
+    
     # 0x80 <= token <= 0x8D
     li      $t1, 0x80
     blt     $s0, $t1, PKW_CHECK_A
     li      $t1, 0x8D
     bgt     $s0, $t1, PKW_CHECK_A
 
-    # O(1) Lookup via PKW_TABLE
+    # O(1) Lookup
     addiu   $t2, $s0, -0x80
     sll     $t2, $t2, 2         # token * 4 (word size)
     la      $t1, PKW_TABLE
@@ -149,7 +150,7 @@ PKW_CHECK_A:
     beq     $s0, $t1, PKW_I
     li      $t1, 0xB2
     beq     $s0, $t1, PKW_J
-
+    
     j       PKW_DONE
 
 PKW_E:
