@@ -5,8 +5,8 @@
 set -e
 
 # Directories
-SRC_DIR="src"
-OUT_DIR="bin"
+SRC_DIR="src/mips"
+OUT_DIR="bin/mips"
 OUT_FILE="${OUT_DIR}/pbasic.s"
 
 # Ensure output directory exists

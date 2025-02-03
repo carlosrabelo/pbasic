@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Interpretador PBasic para MIPS escrito em assembly, rodando nos simuladores SPIM e MARS.
+Interpretador PBasic multi-arquitetura (MIPS/Z80/M6502) escrito em assembly. A versão MIPS roda nos simuladores SPIM e MARS; as versões Z80 e M6502 estão em desenvolvimento para testar a plataforma de emuladores [MOJAVE](https://github.com/carlosrabelo/mojave).
 
 ## Destaques
 
@@ -15,7 +15,9 @@ Interpretador PBasic para MIPS escrito em assembly, rodando nos simuladores SPIM
 
 ## Visão Geral
 
-O PBasic começou em 2014 como um projeto de paixão durante a minha faculdade de Ciência da Computação. Originalmente escrito em assembly MIPS para rodar no simulador MARS, criei o projeto como uma forma de demonstrar aos meus colegas de classe que a linguagem assembly MIPS poderia ser usada para construir softwares práticos e funcionais — como um interpretador BASIC completo —, indo além de simples exercícios acadêmicos.
+O PBasic começou em 2014 como um projeto de paixão durante a minha faculdade de Ciência da Computação.
+
+O projeto agora está se expandindo para além do MIPS: as versões para **Z80** e **M6502** estão em desenvolvimento. Estas novas implementações compartilham o mesmo dialeto PBasic e servem como casos de teste reais para o [MOJAVE](https://github.com/carlosrabelo/mojave), um framework multi-plataforma de emuladores. Originalmente escrito em assembly MIPS para rodar no simulador MARS, criei o projeto como uma forma de demonstrar aos meus colegas de classe que a linguagem assembly MIPS poderia ser usada para construir softwares práticos e funcionais — como um interpretador BASIC completo —, indo além de simples exercícios acadêmicos.
 
 ## Pré-requisitos
 
@@ -51,10 +53,10 @@ Isso concatena todos os módulos assembly MIPS em um único arquivo fonte:
 
 ```bash
 # Rodar o código assembly MIPS no simulador SPIM
-spim -mapped_io -file bin/pbasic.s
+spim -mapped_io -file bin/mips/pbasic.s
 
 # Rodar o código assembly MIPS no simulador MARS
-java -jar MARS.jar bin/pbasic.s
+java -jar MARS.jar bin/mips/pbasic.s
 ```
 
 ### Exemplo de sessão
@@ -81,20 +83,28 @@ OK
 ## Estrutura do Projeto
 
 ```
-src/                # Fontes em assembly MIPS
+src/mips/           # Fontes em assembly MIPS
+src/z80/            # Fontes em assembly Z80 (em desenvolvimento)
+src/m6502/          # Fontes em assembly M6502 (em desenvolvimento)
 demos/              # Programas BASIC de demonstração e testes
-bin/                # Código fonte compilado (ignorado no git)
+bin/mips/           # Código fonte MIPS compilado (ignorado no git)
+bin/z80/            # Código fonte Z80 compilado (ignorado no git)
+bin/m6502/          # Código fonte M6502 compilado (ignorado no git)
 Makefile            # Orquestrador de build
-scripts/            # Scripts auxiliares de build
+.make/              # Scripts auxiliares de build
 ```
 
 ## Desenvolvimento
 
 ```bash
-make help       # Mostra os alvos disponíveis
-make build      # Concatena os fontes MIPS
-make run        # Compila e executa no SPIM/MARS
-make clean      # Remove os artefatos de build
+make help              # Mostra os alvos disponíveis
+make build             # Compila todas as plataformas
+make build-mips        # Concatena os fontes MIPS
+make build-z80         # Monta os fontes Z80 em .bin
+make build-m6502       # Monta os fontes M6502 em .bin
+make run               # Compila e executa MIPS no SPIM/MARS
+make run-mips          # Compila e executa MIPS no SPIM/MARS
+make clean             # Remove os artefatos de build
 ```
 
 ## Licença
