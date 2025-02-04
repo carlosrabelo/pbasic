@@ -2,7 +2,7 @@
 
 ## Phase 1: The System Core & I/O
 - [x] Memory mapping and CPU stack initialization (defs/constants)
-- [ ] Base I/O routines: `INCHAR`, `OUTCHAR` (TTY integration, Port 0x00)
+- [x] Base I/O routines: `INCHAR`, `OUTCHAR` (TTY integration, Port 0x00)
 - [ ] String and number output: `PRINT_STR`, `PRINT_NUMBER`, `PRINT_CRLF`
 - [ ] Read input buffer: `READ_LINE` (with uppercase conversion)
 - [ ] The heart of the system: Basic REPL loop (Read-Eval-Print Loop) prompt `>`
