@@ -40,12 +40,16 @@
 	include 'memmgr.asm'
 	include 'variables.asm'
 	include 'io.asm'
+	include 'strings.asm'
 
 ; =======================================================================
 ; START - System initialization
 ; =======================================================================
 START:
 	ld	sp, STACK_TOP
+
+	ld	hl, MSG_BANNER
+	call	PRINT_STR
 
 	call	PROG_INIT
 
