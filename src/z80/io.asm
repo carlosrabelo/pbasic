@@ -112,6 +112,56 @@ PN_EMIT:
 	jp	OUTCHAR
 
 ; -----------------------------------------------------------------------
+; READ_LINE - Read input from TTY into input buffer
+; -----------------------------------------------------------------------
+; Reads characters from TTY into MEM_INPUT_BUF, strips trailing newline,
+; converts lowercase to uppercase, and null-terminates.
+;
+; Input:  None
+; Output: None
+; Clobbers: A, B, HL
+; -----------------------------------------------------------------------
+READ_LINE:
+	ld	hl, MEM_INPUT_BUF
+	ld	b, 127			; max chars (room for null)
+
+RL_CHAR_LOOP:
+	call	INCHAR			; A = character from TTY
+
+	cp	10			; newline?
+	jr	z, RL_DONE
+
+	cp	13			; carriage return?
+	jr	z, RL_CHAR_LOOP
+
+	ld	(hl), a
+	inc	hl
+	djnz	RL_CHAR_LOOP
+
+RL_DONE:
+	ld	(hl), 0			; null-terminate
+
+	; Post-process: convert lowercase to uppercase
+	ld	hl, MEM_INPUT_BUF
+
+RL_UPPER_LOOP:
+	ld	a, (hl)
+	or	a
+	ret	z			; end of string
+
+	cp	'a'			; < 'a'?
+	jr	c, RL_NEXT
+	cp	'z' + 1			; >= 123?
+	jr	nc, RL_NEXT
+
+	sub	32			; convert to uppercase
+	ld	(hl), a
+
+RL_NEXT:
+	inc	hl
+	jr	RL_UPPER_LOOP
+
+; -----------------------------------------------------------------------
 ; PRINT_OK - Print "OK" message
 ; -----------------------------------------------------------------------
 PRINT_OK:
