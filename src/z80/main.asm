@@ -41,6 +41,8 @@
 	include 'variables.asm'
 	include 'io.asm'
 	include 'strings.asm'
+	include 'tokenize.asm'
+	include 'commands.asm'
 
 ; =======================================================================
 ; START - System initialization
@@ -55,5 +57,32 @@ START:
 
 	call	VAR_INIT
 
+	call	REPL
+
 	di
 	halt
+
+; =======================================================================
+; REPL - Read-Eval-Print Loop
+; =======================================================================
+; Main interactive loop. Prompts the user, reads input, and dispatches.
+; -----------------------------------------------------------------------
+REPL:
+	ld	a, (MEM_RUN_FLAG)
+	or	a
+	jr	nz, REPL_RUN_NEXT	; running a program → execute next line
+
+	ld	hl, STR_PROMPT
+	call	PRINT_STR
+
+	call	READ_LINE
+
+	call	TOKENIZE
+
+	call	REPL_DISPATCH
+
+	jr	REPL
+
+REPL_RUN_NEXT:
+	; stub: will execute next program line
+	jr	REPL
