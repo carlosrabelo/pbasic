@@ -41,6 +41,7 @@
 	include 'variables.asm'
 	include 'io.asm'
 	include 'strings.asm'
+	include 'util.asm'
 	include 'tokenize.asm'
 	include 'commands.asm'
 

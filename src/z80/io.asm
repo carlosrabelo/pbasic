@@ -70,13 +70,13 @@ PN_NZ:
 	ld	(MEM_SCRATCH), a	; suppress leading zeros flag
 
 	ld	bc, 10000
-	call	PN_DIGIT
+	call	PD_DIGIT
 	ld	bc, 1000
-	call	PN_DIGIT
+	call	PD_DIGIT
 	ld	bc, 100
-	call	PN_DIGIT
+	call	PD_DIGIT
 	ld	bc, 10
-	call	PN_DIGIT
+	call	PD_DIGIT
 
 	ld	a, l
 	add	a, '0'
@@ -84,22 +84,22 @@ PN_NZ:
 	ret
 
 ; Extract one decimal digit from HL using power of 10 in BC
-PN_DIGIT:
+PD_DIGIT:
 	ld	a, '0'
-PN_LOOP:
+PD_LOOP:
 	or	a			; clear carry
 	sbc	hl, bc
-	jr	c, PN_DONE
+	jr	c, PD_DONE
 	inc	a
-	jr	PN_LOOP
+	jr	PD_LOOP
 
-PN_DONE:
+PD_DONE:
 	add	hl, bc			; restore HL
 
 	push	af
 	ld	a, (MEM_SCRATCH)
 	or	a
-	jr	z, PN_EMIT		; already emitting
+	jr	z, PD_EMIT		; already emitting
 	pop	af
 	cp	'0'
 	ret	z			; skip leading zero
@@ -107,7 +107,7 @@ PN_DONE:
 	xor	a
 	ld	(MEM_SCRATCH), a
 
-PN_EMIT:
+PD_EMIT:
 	pop	af
 	jp	OUTCHAR
 
