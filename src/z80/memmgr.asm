@@ -1,5 +1,11 @@
 ; memmgr.asm - Program memory management (Z80)
 ; -----------------------------------------------------------------------
+;
+; Node format (linked list):
+;   [2 bytes: next_ptr (16-bit, 0x0000 = end of list)]
+;   [2 bytes: line number (16-bit little-endian)]
+;   [N bytes: tokens (null-terminated)]
+; -----------------------------------------------------------------------
 
 ; -----------------------------------------------------------------------
 ; PROG_INIT - Initialize program memory with sentinel
