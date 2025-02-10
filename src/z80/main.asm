@@ -43,6 +43,7 @@
 	include 'strings.asm'
 	include 'util.asm'
 	include 'tokenize.asm'
+	include 'detokenize.asm'
 	include 'commands.asm'
 
 ; =======================================================================
