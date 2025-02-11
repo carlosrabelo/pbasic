@@ -88,3 +88,142 @@ LF_NEXT:
 	pop	af			; discard saved pointer
 	ex	de, hl			; HL = next_ptr → advance to next node
 	jr	LF_LOOP
+
+; -----------------------------------------------------------------------
+; MEM_OPEN_HOLE - Shift memory right to open a gap
+; -----------------------------------------------------------------------
+; Shifts all bytes from the insertion point to MEM_PROG_END right by
+; the specified size, creating a hole for a new node.
+;
+; Input:  HL = insertion pointer (threshold)
+;         BC = size in bytes to open
+; Output: None
+; Clobbers: A, D, E
+; -----------------------------------------------------------------------
+MEM_OPEN_HOLE:
+	ld	(MEM_SCRATCH), hl	; save threshold
+	ld	(MEM_SCRATCH_LEN), bc	; save size
+
+	ld	de, (MEM_PROG_END)	; DE = end
+
+	; Check if threshold == end (nothing to shift)
+	ld	hl, (MEM_SCRATCH)
+	ld	a, d
+	cp	h
+	jr	nz, MOH_COPY
+	ld	a, e
+	cp	l
+	jr	z, MOH_AT_END
+
+MOH_COPY:
+	; DE = end, (MEM_SCRATCH) = threshold, (MEM_SCRATCH_LEN) = size
+
+	; Count = end - threshold
+	ld	hl, (MEM_SCRATCH)
+	xor	a
+	ex	de, hl			; HL = end, DE = threshold
+	sbc	hl, de			; HL = end - threshold = count
+	push	hl			; save count		[C]
+
+	; dst = end + size - 1
+	ld	hl, (MEM_PROG_END)	; HL = end
+	ld	bc, (MEM_SCRATCH_LEN)	; BC = size
+	push	hl			; save end		[E,C]
+	add	hl, bc
+	dec	hl			; HL = end + size - 1 = dst
+	ex	de, hl			; DE = dst
+
+	; src = end - 1
+	pop	hl			; HL = end		[C]
+	dec	hl			; HL = end - 1 = src
+
+	; count
+	pop	bc			; BC = count		[]
+
+	; HL = src, DE = dst, BC = count
+MOH_LOOP:
+	ld	a, (hl)
+	ld	(de), a
+	dec	hl
+	dec	de
+	dec	bc
+	ld	a, b
+	or	c
+	jr	nz, MOH_LOOP
+
+MOH_AT_END:
+	; Update MEM_PROG_END = end + size
+	ld	hl, (MEM_PROG_END)
+	ld	bc, (MEM_SCRATCH_LEN)
+	add	hl, bc
+	ld	(MEM_PROG_END), hl
+	ret
+
+; -----------------------------------------------------------------------
+; MEM_CLOSE_HOLE - Shift memory left to close a gap
+; -----------------------------------------------------------------------
+; Shifts all bytes from (start + size) to MEM_PROG_END left by the
+; specified size, closing a hole left by a deleted node.
+;
+; Input:  HL = start of deletion
+;         BC = size in bytes to delete
+; Output: None
+; Clobbers: A, D, E
+; -----------------------------------------------------------------------
+MEM_CLOSE_HOLE:
+	ld	(MEM_SCRATCH), hl	; save start
+	ld	(MEM_SCRATCH_LEN), bc	; save size
+
+	; source = start + size
+	ld	hl, (MEM_SCRATCH)
+	ld	bc, (MEM_SCRATCH_LEN)
+	add	hl, bc			; HL = source
+	ex	de, hl			; DE = source
+
+	; Check if source >= end (nothing to shift)
+	ld	hl, (MEM_PROG_END)	; HL = end
+	ld	a, e
+	cp	l
+	ld	a, d
+	sbc	a, h
+	jr	nc, MCH_DONE		; source >= end → skip copy
+
+	; DE = source, HL = end
+	; Count = end - source
+	xor	a
+	ex	de, hl			; HL = end, DE = source
+	sbc	hl, de			; HL = count
+	push	hl			; save count		[C]
+
+	; src = source (= DE after ex, which is source)
+	push	de			; save src		[S,C]
+
+	; dst = start
+	ld	hl, (MEM_SCRATCH)
+	ex	de, hl			; DE = dst
+
+	; src
+	pop	hl			; HL = src		[C]
+
+	; count
+	pop	bc			; BC = count		[]
+
+	; HL = src, DE = dst, BC = count
+MCH_LOOP:
+	ld	a, (hl)
+	ld	(de), a
+	inc	hl
+	inc	de
+	dec	bc
+	ld	a, b
+	or	c
+	jr	nz, MCH_LOOP
+
+MCH_DONE:
+	; Update MEM_PROG_END = end - size
+	ld	hl, (MEM_PROG_END)
+	ld	bc, (MEM_SCRATCH_LEN)
+	xor	a
+	sbc	hl, bc
+	ld	(MEM_PROG_END), hl
+	ret
