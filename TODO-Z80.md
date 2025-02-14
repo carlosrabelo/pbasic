@@ -22,7 +22,7 @@
 - [x] Implement the `LIST` command to dump the tokenized linked list
 
 ## Phase 4: Mathematical Engine & Variables
-- [ ] Variable storage initialization (fixed RAM): `VAR_INIT`
+- [x] Variable storage initialization (fixed RAM): `VAR_INIT`
 - [ ] Variable access primitives: `VAR_GET`, `VAR_SET`
 - [ ] 16-bit unsigned multiplication: `MUL16` (shift-and-add logic)
 - [ ] 16-bit unsigned division and modulo: `DIV16`, `MOD16`
