@@ -25,7 +25,7 @@
 - [x] Variable storage initialization (fixed RAM): `VAR_INIT`
 - [x] Variable access primitives: `VAR_GET`, `VAR_SET`
 - [x] 16-bit unsigned multiplication: `MUL16` (shift-and-add logic)
-- [ ] 16-bit unsigned division and modulo: `DIV16`, `MOD16`
+- [x] 16-bit unsigned division and modulo: `DIV16`, `MOD16`
 
 ## Phase 5: Expression Evaluator (Recursive Descent Parser)
 - [ ] `EVAL_FACTOR`: Handle numeric literals, variables, parentheses, and unary minus
