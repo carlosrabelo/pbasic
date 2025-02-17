@@ -24,7 +24,7 @@
 ## Phase 4: Mathematical Engine & Variables
 - [x] Variable storage initialization (fixed RAM): `VAR_INIT`
 - [x] Variable access primitives: `VAR_GET`, `VAR_SET`
-- [ ] 16-bit unsigned multiplication: `MUL16` (shift-and-add logic)
+- [x] 16-bit unsigned multiplication: `MUL16` (shift-and-add logic)
 - [ ] 16-bit unsigned division and modulo: `DIV16`, `MOD16`
 
 ## Phase 5: Expression Evaluator (Recursive Descent Parser)

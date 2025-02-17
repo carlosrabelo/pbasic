@@ -39,6 +39,7 @@
 	include 'defs.asm'
 	include 'memmgr.asm'
 	include 'variables.asm'
+	include 'math.asm'
 	include 'io.asm'
 	include 'strings.asm'
 	include 'util.asm'
