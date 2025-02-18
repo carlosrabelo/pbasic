@@ -81,12 +81,45 @@ EF_ERR:
 	ret
 
 ; -----------------------------------------------------------------------
-; EVAL_TERM - Evaluate a term (stub: delegates to EVAL_FACTOR)
+; EVAL_TERM - Evaluate a term (handles * and /)
 ; -----------------------------------------------------------------------
-; Full version will handle * and / operators.
+; Input:  MEM_TOKEN_PTR (token stream position)
+; Output: HL = evaluated value (16-bit)
+; Clobbers: A, B, C, D, E
 ; -----------------------------------------------------------------------
 EVAL_TERM:
-	jp	EVAL_FACTOR
+	call	EVAL_FACTOR		; HL = first factor
+
+ET_LOOP:
+	push	hl			; save accumulator
+	ld	hl, (MEM_TOKEN_PTR)
+	ld	a, (hl)			; current token
+
+	cp	'*'
+	jr	z, ET_MUL
+
+	cp	'/'
+	jr	z, ET_DIV
+
+	pop	hl			; HL = accumulated value
+	ret
+
+ET_MUL:
+	inc	hl			; advance past '*'
+	ld	(MEM_TOKEN_PTR), hl
+	call	EVAL_FACTOR		; HL = next factor
+	pop	de			; DE = old accumulator
+	call	MUL16			; HL = accumulator * factor
+	jr	ET_LOOP
+
+ET_DIV:
+	inc	hl			; advance past '/'
+	ld	(MEM_TOKEN_PTR), hl
+	call	EVAL_FACTOR		; HL = next factor
+	pop	de			; DE = old accumulator
+	ex	de, hl			; HL = accumulator, DE = divisor
+	call	DIV16			; HL = quotient
+	jr	ET_LOOP
 
 ; -----------------------------------------------------------------------
 ; EVAL_EXPR - Evaluate an expression (stub: delegates to EVAL_TERM)
