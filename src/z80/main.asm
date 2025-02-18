@@ -45,6 +45,7 @@
 	include 'util.asm'
 	include 'tokenize.asm'
 	include 'detokenize.asm'
+	include 'expr.asm'
 	include 'commands.asm'
 
 ; =======================================================================
