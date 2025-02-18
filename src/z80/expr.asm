@@ -122,9 +122,43 @@ ET_DIV:
 	jr	ET_LOOP
 
 ; -----------------------------------------------------------------------
-; EVAL_EXPR - Evaluate an expression (stub: delegates to EVAL_TERM)
+; EVAL_EXPR - Evaluate an expression (handles + and -)
 ; -----------------------------------------------------------------------
-; Full version will handle + and - operators.
+; Input:  MEM_TOKEN_PTR (token stream position)
+; Output: HL = evaluated value (16-bit)
+; Clobbers: A, B, C, D, E
 ; -----------------------------------------------------------------------
 EVAL_EXPR:
-	jp	EVAL_TERM
+	call	EVAL_TERM		; HL = first term
+
+EE_LOOP:
+	push	hl			; save accumulator
+	ld	hl, (MEM_TOKEN_PTR)
+	ld	a, (hl)			; current token
+
+	cp	'+'
+	jr	z, EE_ADD
+
+	cp	'-'
+	jr	z, EE_SUB
+
+	pop	hl			; HL = accumulated value
+	ret
+
+EE_ADD:
+	inc	hl			; advance past '+'
+	ld	(MEM_TOKEN_PTR), hl
+	call	EVAL_TERM		; HL = next term
+	pop	de			; DE = old accumulator
+	add	hl, de			; HL = accumulator + term
+	jr	EE_LOOP
+
+EE_SUB:
+	inc	hl			; advance past '-'
+	ld	(MEM_TOKEN_PTR), hl
+	call	EVAL_TERM		; HL = next term
+	ex	de, hl			; DE = term, HL = freed
+	pop	hl			; HL = old accumulator
+	or	a			; clear carry
+	sbc	hl, de			; HL = accumulator - term
+	jr	EE_LOOP
