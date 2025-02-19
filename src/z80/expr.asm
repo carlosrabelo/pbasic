@@ -162,3 +162,116 @@ EE_SUB:
 	or	a			; clear carry
 	sbc	hl, de			; HL = accumulator - term
 	jr	EE_LOOP
+
+; -----------------------------------------------------------------------
+; EVAL_COND - Evaluate a condition (expr relop expr)
+; -----------------------------------------------------------------------
+; Input:  MEM_TOKEN_PTR (token stream position)
+; Output: HL = 1 if true, 0 if false
+; Clobbers: A, B, C, D, E
+; -----------------------------------------------------------------------
+EVAL_COND:
+	call	EVAL_EXPR		; HL = left side
+	push	hl			; save left
+
+	ld	hl, (MEM_TOKEN_PTR)
+	ld	a, (hl)			; A = operator token
+	push	af			; save operator
+	inc	hl			; advance past operator
+	ld	(MEM_TOKEN_PTR), hl
+
+	call	EVAL_EXPR		; HL = right side
+	pop	af			; A = operator
+	ex	de, hl			; DE = right side
+	pop	hl			; HL = left side
+
+	cp	'='
+	jr	z, EC_EQ
+
+	cp	TK_NE
+	jr	z, EC_NE
+
+	cp	'<'
+	jr	z, EC_LT
+
+	cp	'>'
+	jr	z, EC_GT
+
+	cp	TK_LE
+	jr	z, EC_LE
+
+	cp	TK_GE
+	jr	z, EC_GE
+
+	jr	EC_FALSE		; unknown operator
+
+EC_EQ:
+	or	a
+	sbc	hl, de
+	jr	z, EC_TRUE
+	jr	EC_FALSE
+
+EC_NE:
+	or	a
+	sbc	hl, de
+	jr	nz, EC_TRUE
+	jr	EC_FALSE
+
+EC_LT:
+	call	CMP_SIGNED_LT		; HL < DE?
+	jr	c, EC_TRUE
+	jr	EC_FALSE
+
+EC_GT:
+	ex	de, hl
+	call	CMP_SIGNED_LT		; DE < HL?
+	jr	c, EC_TRUE
+	jr	EC_FALSE
+
+EC_LE:
+	ex	de, hl
+	call	CMP_SIGNED_LT		; DE < HL? (strict)
+	jr	c, EC_FALSE
+	jr	EC_TRUE
+
+EC_GE:
+	call	CMP_SIGNED_LT		; HL < DE? (strict)
+	jr	c, EC_FALSE
+	jr	EC_TRUE
+
+EC_TRUE:
+	ld	hl, 1
+	ret
+
+EC_FALSE:
+	ld	hl, 0
+	ret
+
+; -----------------------------------------------------------------------
+; CMP_SIGNED_LT - Signed 16-bit less-than comparison
+; -----------------------------------------------------------------------
+; Input:  HL, DE = values to compare
+; Output: carry set if HL < DE (signed), carry clear if HL >= DE
+; Clobbers: A
+; -----------------------------------------------------------------------
+CMP_SIGNED_LT:
+	ld	a, h
+	xor	d			; check if signs differ
+	bit	7, a
+	jr	nz, CSLT_DIFF
+
+	push	hl
+	or	a
+	sbc	hl, de			; same signs: unsigned = signed
+	pop	hl
+	ret				; carry preserved across pop
+
+CSLT_DIFF:
+	bit	7, h			; HL negative?
+	jr	nz, CSLT_TRUE		; HL neg, DE pos → HL < DE
+	or	a			; HL pos, DE neg → HL >= DE
+	ret
+
+CSLT_TRUE:
+	scf				; HL < DE
+	ret
