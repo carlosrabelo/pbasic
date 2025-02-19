@@ -1,13 +1,17 @@
 ; commands.asm - Command dispatch engine for PBasic Z80
 ; -----------------------------------------------------------------------
+; Maps command tokens (0x80-0x8C) to handler routines via a jump table.
+; -----------------------------------------------------------------------
 
 ; -----------------------------------------------------------------------
-; REPL_DISPATCH - Analyze token buffer and execute commands
+; REPL_DISPATCH - Analyze token buffer and dispatch commands
 ; -----------------------------------------------------------------------
 ; Reads the first byte of MEM_TOKEN_BUF and dispatches:
-;   - 0xC0 (TK_NUM): program line  ->  LINE_STORE
-;   - 0x88 (TK_LIST): LIST command  ->  CMD_LIST
-;   - 0x00 or other: no-op for now
+;   - 0x00         : empty line     -> ignore
+;   - 0xC0 (TK_NUM): program line   -> LINE_STORE
+;   - 0xA0 (TK_FREE): FREE command  -> DO_FREE
+;   - 0x80-0x8C    : command tokens -> CMD_JUMP_TABLE
+;   - other        : ignore
 ;
 ; Input:  MEM_TOKEN_BUF (tokenized line), MEM_TOKEN_PTR
 ; Output: None
@@ -23,17 +27,114 @@ REPL_DISPATCH:
 	cp	TK_NUM
 	jr	z, RD_LINE_NUM
 
-	cp	TK_LIST
-	jr	z, RD_LIST
+	cp	TK_FREE
+	jr	z, RD_FREE
 
-	ret				; unrecognized -> ignore
+	; Valid command range: 0x80-0x8C
+	cp	$80
+	jr	c, RD_DONE		; < 0x80 -> ignore
+	cp	$8D
+	jr	nc, RD_DONE		; >= 0x8D -> ignore
+
+	; Compute jump table offset: (token - 0x80) * 3
+	sub	$80			; A = index (0-12)
+	ld	e, a
+	ld	d, 0			; DE = index
+	ld	hl, CMD_JUMP_TABLE
+	add	hl, hl			; HL = table + index * 2
+	add	hl, de			; HL = table + index * 3
+
+	; Advance MEM_TOKEN_PTR past the command token
+	push	hl
+	ld	hl, (MEM_TOKEN_PTR)
+	inc	hl
+	ld	(MEM_TOKEN_PTR), hl
+	pop	hl
+
+	jp	(hl)			; dispatch to handler
 
 RD_LINE_NUM:
 	call	LINE_STORE
 	ret
 
-RD_LIST:
+RD_FREE:
+	call	DO_FREE
+	ret
+
+RD_DONE:
+	ret
+
+; =======================================================================
+; Command jump table (13 entries, 3 bytes each)
+; Indexed by (token - 0x80) * 3
+; =======================================================================
+CMD_JUMP_TABLE:
+	jp	DO_LET			; 0x80
+	jp	DO_GOTO		; 0x81
+	jp	DO_GOSUB		; 0x82
+	jp	DO_PRINT		; 0x83
+	jp	DO_IF			; 0x84
+	jp	DO_INPUT		; 0x85
+	jp	DO_RETURN		; 0x86
+	jp	DO_END			; 0x87
+	jp	DO_LIST		; 0x88
+	jp	DO_RUN			; 0x89
+	jp	DO_NEW			; 0x8A
+	jp	DO_EXIT		; 0x8B
+	jp	DO_REM			; 0x8C
+
+; =======================================================================
+; Command handlers (stubs for unimplemented commands)
+; =======================================================================
+
+DO_LET:
+DO_GOTO:
+DO_GOSUB:
+DO_PRINT:
+DO_IF:
+DO_INPUT:
+DO_RETURN:
+DO_END:
+DO_RUN:
+	ret
+
+DO_LIST:
 	call	CMD_LIST
+	ret
+
+DO_NEW:
+	call	PROG_INIT
+	call	VAR_INIT
+	ld	hl, 0
+	ld	(MEM_GOSUB_SP), hl
+	ld	hl, MSG_OK
+	call	PRINT_STR
+	ret
+
+DO_EXIT:
+	di
+	halt
+
+DO_REM:
+	ret
+
+; -----------------------------------------------------------------------
+; DO_FREE - Calculate and print remaining free memory
+; -----------------------------------------------------------------------
+DO_FREE:
+	ld	hl, (MEM_PROG_END)
+	ld	de, MEM_PROG_START + MEM_PROG_SIZE
+	or	a
+	sbc	hl, de
+	ld	a, h
+	cpl
+	ld	h, a
+	ld	a, l
+	cpl
+	ld	l, a
+	inc	hl			; HL = -(MEM_PROG_END - buffer_end) = free bytes
+	call	PRINT_NUMBER
+	call	PRINT_CRLF
 	ret
 
 ; -----------------------------------------------------------------------
@@ -41,9 +142,6 @@ RD_LIST:
 ; -----------------------------------------------------------------------
 ; Walks the linked list at MEM_PROG_START and prints each line as:
 ;   <line_number> <tokens>\r\n
-;
-; Stack layout during one iteration:
-;   [node_tok] [node_ln] [next]
 ;
 ; Input:  None
 ; Output: None
@@ -53,24 +151,21 @@ CMD_LIST:
 	ld	hl, MEM_PROG_START
 
 CML_LOOP:
-	; Read next_ptr (2 bytes at HL) into DE
 	ld	e, (hl)
 	inc	hl
 	ld	d, (hl)			; DE = next_ptr
 	dec	hl			; HL = node start
 
-	; End of list?
 	ld	a, d
 	or	e
 	ret	z			; null -> done
 
-	; Save next_ptr (C), node for tokens (B), node for line (A)
-	push	de			; (C) next_ptr
-	push	hl			; (B) node_tok
-	push	hl			; (A) node_ln
+	push	de			; next_ptr
+	push	hl			; node_tok
+	push	hl			; node_ln
 
 	; --- Print line number ---
-	pop	hl			; HL = node_ln		[B, C]
+	pop	hl			; HL = node_ln
 	inc	hl
 	inc	hl			; HL = line_num slot
 	ld	a, (hl)
@@ -83,7 +178,7 @@ CML_LOOP:
 	call	OUTCHAR
 
 	; --- Print tokens ---
-	pop	hl			; HL = node_tok		[C]
+	pop	hl			; HL = node_tok
 	inc	hl
 	inc	hl
 	inc	hl
@@ -92,5 +187,5 @@ CML_LOOP:
 	call	PRINT_CRLF
 
 	; --- Advance ---
-	pop	hl			; HL = next_ptr		[]
+	pop	hl			; HL = next_ptr
 	jr	CML_LOOP
