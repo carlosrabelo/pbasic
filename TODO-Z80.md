@@ -37,7 +37,7 @@
 - [x] Direct command jump table: `REPL_DISPATCH`
 - [x] `PRINT`: Output expressions, string literals, handling `,` (tabs) and `;` (no newline)
 - [x] `LET`: Assign evaluated expressions to variables
-- [ ] `NEW`: Clear the program linked list and variables
+- [x] `NEW`: Clear the program linked list and variables
 - [ ] `REM`: Ignore the remainder of the line
 - [ ] `FREE`: Calculate available bytes between the program end and stack/variable space
 
