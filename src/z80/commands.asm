@@ -90,12 +90,82 @@ CMD_JUMP_TABLE:
 DO_LET:
 DO_GOTO:
 DO_GOSUB:
-DO_PRINT:
 DO_IF:
 DO_INPUT:
 DO_RETURN:
 DO_END:
 DO_RUN:
+	ret
+
+; -----------------------------------------------------------------------
+; DO_PRINT - Output expressions, string literals, formatting
+; -----------------------------------------------------------------------
+; Handles: numeric expressions, string literals (TK_STR), ',' (tab), ';'
+; Input:  MEM_TOKEN_PTR (past PRINT token)
+; Output: None
+; Clobbers: A, B, C, D, E, H, L
+; -----------------------------------------------------------------------
+DO_PRINT:
+DP_LOOP:
+	ld	hl, (MEM_TOKEN_PTR)
+	ld	a, (hl)			; current token
+
+	or	a
+	jr	z, DP_CRLF		; EOL -> print CRLF and exit
+
+	cp	TK_STR			; 0xC1 = string literal
+	jr	z, DP_STRING
+
+	cp	';'
+	jr	z, DP_SEMI
+
+	cp	','
+	jr	z, DP_COMMA
+
+	; Otherwise: evaluate expression and print number
+	call	EVAL_EXPR		; HL = value
+	call	PRINT_NUMBER
+	jr	DP_LOOP
+
+DP_STRING:
+	inc	hl			; skip opening TK_STR
+DP_STR_LOOP:
+	ld	a, (hl)
+	cp	TK_STR			; closing marker?
+	jr	z, DP_STR_END
+	or	a
+	jr	z, DP_STR_ABORT	; safety: null byte
+
+	call	OUTCHAR
+	inc	hl
+	jr	DP_STR_LOOP
+
+DP_STR_END:
+	inc	hl			; skip closing TK_STR
+DP_STR_ABORT:
+	ld	(MEM_TOKEN_PTR), hl
+	jr	DP_LOOP
+
+DP_SEMI:
+	inc	hl			; skip ';'
+	ld	(MEM_TOKEN_PTR), hl
+	ld	a, (hl)
+	or	a
+	ret	z			; EOL after ';' -> suppress CRLF
+	jr	DP_LOOP
+
+DP_COMMA:
+	inc	hl			; skip ','
+	ld	(MEM_TOKEN_PTR), hl
+	ld	b, 8
+DP_TAB_LOOP:
+	ld	a, ' '
+	call	OUTCHAR
+	djnz	DP_TAB_LOOP
+	jr	DP_LOOP
+
+DP_CRLF:
+	call	PRINT_CRLF
 	ret
 
 DO_LIST:
