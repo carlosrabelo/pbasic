@@ -88,5 +88,5 @@ REPL:
 	jr	REPL
 
 REPL_RUN_NEXT:
-	; stub: will execute next program line
+	call	RUN_NEXT
 	jr	REPL

@@ -18,7 +18,7 @@
 ; Clobbers: All
 ; -----------------------------------------------------------------------
 REPL_DISPATCH:
-	ld	hl, MEM_TOKEN_BUF
+	ld	hl, (MEM_TOKEN_PTR)
 	ld	a, (hl)
 
 	or	a
@@ -121,8 +121,45 @@ DO_GOSUB:
 DO_IF:
 DO_INPUT:
 DO_RETURN:
+	ret
+
 DO_END:
+	xor	a
+	ld	(MEM_RUN_FLAG), a
+	ret
+
+; -----------------------------------------------------------------------
+; DO_RUN - Begin execution of the stored BASIC program
+; -----------------------------------------------------------------------
+; Input:  None
+; Output: None
+; Clobbers: A, D, E, H, L
+; -----------------------------------------------------------------------
 DO_RUN:
+	ld	hl, (MEM_PROG_START)	; HL = sentinel.next_ptr
+	ld	a, h
+	or	l
+	jr	z, DR_NO_PROG		; empty program
+
+	ld	hl, 0
+	ld	(MEM_GOSUB_SP), hl	; reset GOSUB stack
+
+	ld	a, 1
+	ld	(MEM_RUN_FLAG), a	; set run flag
+
+	ld	hl, (MEM_PROG_START)	; HL = first node
+	ld	(MEM_LINE_PTR), hl	; LINE_PTR = first node
+	inc	hl
+	inc	hl
+	inc	hl
+	inc	hl			; HL = first node + 4 = tokens
+	ld	(MEM_TOKEN_PTR), hl
+
+	jp	REPL_DISPATCH		; execute first line
+
+DR_NO_PROG:
+	ld	hl, MSG_ERROR
+	call	PRINT_STR
 	ret
 
 ; -----------------------------------------------------------------------
@@ -287,3 +324,40 @@ CML_LOOP:
 	; --- Advance ---
 	pop	hl			; HL = next_ptr
 	jr	CML_LOOP
+
+; -----------------------------------------------------------------------
+; RUN_NEXT - Advance execution to the next program line
+; -----------------------------------------------------------------------
+; Reads MEM_LINE_PTR, follows next_ptr to the next node, updates
+; LINE_PTR and TOKEN_PTR, and dispatches the next line's tokens.
+;
+; Input:  MEM_LINE_PTR (current node)
+; Output: None (jp REPL_DISPATCH or RUN_END)
+; Clobbers: A, D, E, H, L
+; -----------------------------------------------------------------------
+RUN_NEXT:
+	ld	hl, (MEM_LINE_PTR)	; HL = current node
+	ld	e, (hl)
+	inc	hl
+	ld	d, (hl)			; DE = current.next_ptr
+	ld	a, d
+	or	e
+	jr	z, RUN_END		; next == null → end of program
+
+	ld	(MEM_LINE_PTR), de	; LINE_PTR = next node
+	ex	de, hl			; HL = next node
+	inc	hl
+	inc	hl
+	inc	hl
+	inc	hl			; HL = next node + 4 = tokens
+	ld	(MEM_TOKEN_PTR), hl
+
+	jp	REPL_DISPATCH
+
+; -----------------------------------------------------------------------
+; RUN_END - End program execution, return to interactive REPL
+; -----------------------------------------------------------------------
+RUN_END:
+	xor	a
+	ld	(MEM_RUN_FLAG), a
+	ret
