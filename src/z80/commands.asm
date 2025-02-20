@@ -88,6 +88,34 @@ CMD_JUMP_TABLE:
 ; =======================================================================
 
 DO_LET:
+	ld	hl, (MEM_TOKEN_PTR)
+	ld	a, (hl)			; variable token
+
+	cp	TK_VAR
+	jr	c, DL_ERR		; < 0xD0
+	cp	$EA
+	jr	nc, DL_ERR		; >= 0xEA
+
+	push	af			; save variable token
+	inc	hl
+	ld	a, (hl)			; should be '='
+	cp	'='
+	jr	nz, DL_ERR_POP
+
+	inc	hl			; past '='
+	ld	(MEM_TOKEN_PTR), hl
+	call	EVAL_EXPR		; HL = expression value
+
+	pop	af			; A = variable token
+	ex	de, hl			; DE = value
+	call	VAR_SET			; A = token, DE = value
+	ret
+
+DL_ERR_POP:
+	pop	af
+DL_ERR:
+	ret
+
 DO_GOTO:
 DO_GOSUB:
 DO_IF:
