@@ -117,6 +117,36 @@ DL_ERR:
 	ret
 
 DO_GOTO:
+	call	EVAL_EXPR		; HL = target line number
+	ld	b, h
+	ld	c, l			; BC = target line number
+	call	LINE_FIND		; HL = node, carry = 1 if found
+	jr	nc, DG_ERR
+
+	ld	e, (hl)
+	inc	hl
+	ld	d, (hl)			; DE = target node (next_ptr)
+
+	ld	(MEM_LINE_PTR), de	; LINE_PTR = target
+	ex	de, hl			; HL = target node
+	inc	hl
+	inc	hl
+	inc	hl
+	inc	hl			; HL = target + 4 = tokens
+	ld	(MEM_TOKEN_PTR), hl
+
+	ld	a, 1
+	ld	(MEM_RUN_FLAG), a
+
+	jp	REPL_DISPATCH
+
+DG_ERR:
+	xor	a
+	ld	(MEM_RUN_FLAG), a
+	ld	hl, MSG_ERROR
+	call	PRINT_STR
+	ret
+
 DO_GOSUB:
 DO_IF:
 DO_INPUT:
