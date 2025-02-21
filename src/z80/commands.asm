@@ -148,9 +148,87 @@ DG_ERR:
 	ret
 
 DO_GOSUB:
+	ld	a, (MEM_GOSUB_SP)
+	cp	16
+	jr	z, DGS_ERR		; stack overflow
+
+	ld	hl, (MEM_LINE_PTR)	; current line pointer
+	push	hl			; save for later
+
+	ld	a, (MEM_GOSUB_SP)
+	ld	d, 0
+	ld	e, a			; DE = SP
+	ld	hl, MEM_GOSUB_STK
+	add	hl, de
+	add	hl, de			; HL = STK + SP * 2
+
+	pop	de			; DE = LINE_PTR
+	ld	(hl), e
+	inc	hl
+	ld	(hl), d			; push LINE_PTR
+
+	ld	a, (MEM_GOSUB_SP)
+	inc	a
+	ld	(MEM_GOSUB_SP), a	; SP++
+
+	call	EVAL_EXPR		; HL = target line number
+	ld	b, h
+	ld	c, l
+	call	LINE_FIND		; HL = node, carry = 1 if found
+	jr	nc, DGS_ERR
+
+	ld	e, (hl)
+	inc	hl
+	ld	d, (hl)			; DE = target node
+	ld	(MEM_LINE_PTR), de
+
+	ex	de, hl			; HL = target node
+	inc	hl
+	inc	hl
+	inc	hl
+	inc	hl			; HL = target + 4 = tokens
+	ld	(MEM_TOKEN_PTR), hl
+
+	ld	a, 1
+	ld	(MEM_RUN_FLAG), a
+	jp	REPL_DISPATCH
+
+DGS_ERR:
+	xor	a
+	ld	(MEM_RUN_FLAG), a
+	ld	hl, MSG_ERROR
+	call	PRINT_STR
+	ret
+
 DO_IF:
 DO_INPUT:
+	ret
+
 DO_RETURN:
+	ld	a, (MEM_GOSUB_SP)
+	or	a
+	jr	z, DRT_ERR		; stack underflow
+
+	dec	a
+	ld	(MEM_GOSUB_SP), a	; SP--
+
+	ld	d, 0
+	ld	e, a			; DE = new SP
+	ld	hl, MEM_GOSUB_STK
+	add	hl, de
+	add	hl, de			; HL = STK + SP * 2
+
+	ld	e, (hl)
+	inc	hl
+	ld	d, (hl)			; DE = saved LINE_PTR
+	ld	(MEM_LINE_PTR), de
+	ret				; return to REPL → RUN_NEXT
+
+DRT_ERR:
+	xor	a
+	ld	(MEM_RUN_FLAG), a
+	ld	hl, MSG_ERROR
+	call	PRINT_STR
 	ret
 
 DO_END:
