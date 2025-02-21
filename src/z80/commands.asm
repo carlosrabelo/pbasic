@@ -201,6 +201,33 @@ DGS_ERR:
 	ret
 
 DO_IF:
+	call	EVAL_COND		; HL = 1 (true) or 0 (false)
+	ld	a, l
+	or	a
+	jr	z, DI_FALSE		; condition false → skip line
+
+	; Condition true: expect THEN token
+	ld	hl, (MEM_TOKEN_PTR)
+	ld	a, (hl)
+	cp	TK_THEN
+	jr	nz, DI_ERR
+
+	inc	hl			; advance past THEN
+	ld	(MEM_TOKEN_PTR), hl
+
+	; Dispatch command after THEN
+	jp	REPL_DISPATCH
+
+DI_FALSE:
+	ret				; skip rest of line
+
+DI_ERR:
+	xor	a
+	ld	(MEM_RUN_FLAG), a
+	ld	hl, MSG_ERROR
+	call	PRINT_STR
+	ret
+
 DO_INPUT:
 	ret
 
