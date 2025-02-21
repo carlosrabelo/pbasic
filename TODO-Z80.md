@@ -49,6 +49,6 @@
 - [x] `IF / THEN`: Conditional branching
 
 ## Phase 8: Advanced Functions & Interactivity
-- [ ] `INPUT`: Pause execution, read from TTY, and assign to variable
+- [x] `INPUT`: Pause execution, read from TTY, and assign to variable
 - [ ] `RND(x)`: Linear congruential pseudo-random number generator
 - [ ] `ABS(x)`: Calculate absolute value (Two's complement)

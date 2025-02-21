@@ -210,7 +210,7 @@ DO_IF:
 	ld	hl, (MEM_TOKEN_PTR)
 	ld	a, (hl)
 	cp	TK_THEN
-	jr	nz, DI_ERR
+	jr	nz, DIN_ERR
 
 	inc	hl			; advance past THEN
 	ld	(MEM_TOKEN_PTR), hl
@@ -221,7 +221,7 @@ DO_IF:
 DI_FALSE:
 	ret				; skip rest of line
 
-DI_ERR:
+DIN_ERR:
 	xor	a
 	ld	(MEM_RUN_FLAG), a
 	ld	hl, MSG_ERROR
@@ -229,6 +229,72 @@ DI_ERR:
 	ret
 
 DO_INPUT:
+	ld	hl, (MEM_TOKEN_PTR)
+	ld	a, (hl)			; first token after INPUT
+
+	cp	TK_STR			; custom prompt string?
+	jr	nz, DI_PROMPT
+
+	inc	hl			; skip opening TK_STR
+DI_STR_LOOP:
+	ld	a, (hl)
+	cp	TK_STR			; closing marker?
+	jr	z, DI_STR_END
+	or	a
+	jr	z, DIN_ERR		; safety: null byte
+	call	OUTCHAR
+	inc	hl
+	jr	DI_STR_LOOP
+
+DI_STR_END:
+	inc	hl			; skip closing TK_STR
+	ld	a, (hl)
+	cp	';'			; expect separator
+	jr	nz, DIN_ERR
+	inc	hl			; skip ';'
+	jr	DI_VAR
+
+DI_PROMPT:
+	ld	a, '?'
+	call	OUTCHAR
+	ld	a, ' '
+	call	OUTCHAR
+
+DI_VAR:
+	ld	a, (hl)			; variable token
+	cp	TK_VAR
+	jr	c, DIN_ERR
+	cp	$EA
+	jr	nc, DIN_ERR
+
+	push	af			; save variable token
+	inc	hl
+	ld	(MEM_TOKEN_PTR), hl
+
+	call	READ_LINE		; reads into MEM_INPUT_BUF
+
+	ld	hl, MEM_INPUT_BUF
+	ld	a, (hl)
+	cp	'-'
+	jr	nz, DI_PARSE
+
+	inc	hl			; skip '-'
+	call	PARSE_NUMBER		; DE = value
+	ld	a, e
+	cpl
+	ld	e, a
+	ld	a, d
+	cpl
+	ld	d, a
+	inc	de			; DE = -value
+	jr	DI_STORE
+
+DI_PARSE:
+	call	PARSE_NUMBER		; DE = value
+
+DI_STORE:
+	pop	af			; A = variable token
+	call	VAR_SET
 	ret
 
 DO_RETURN:
