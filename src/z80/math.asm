@@ -102,3 +102,26 @@ MOD16:
 	call	DIVMOD16
 	ex	de, hl			; HL = remainder
 	ret
+
+; -----------------------------------------------------------------------
+; RAND16 - Pseudo-random number generator (16-bit LCG).
+; -----------------------------------------------------------------------
+; Algorithm: seed = (seed * 5 + 2971) & 0xFFFF
+; Input:  None (uses MEM_RAND_SEED)
+; Output: HL = new random value (16-bit)
+; Clobbers: A, D, E
+; -----------------------------------------------------------------------
+RAND16:
+	ld	hl, (MEM_RAND_SEED)	; HL = current seed
+	ld	d, h
+	ld	e, l			; DE = seed
+
+	add	hl, hl			; HL = seed * 2
+	add	hl, hl			; HL = seed * 4
+	add	hl, de			; HL = seed * 5
+
+	ld	de, 2971
+	add	hl, de			; HL = seed * 5 + 2971 (auto wrap)
+
+	ld	(MEM_RAND_SEED), hl	; store new seed
+	ret

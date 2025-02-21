@@ -46,6 +46,32 @@ EF_NOT_NUM:
 	ret
 
 EF_NOT_VAR:
+	; --- RND function (0xA1) ---
+	cp	TK_RND
+	jr	nz, EF_NOT_RND
+
+	inc	hl			; advance past RND token
+	ld	(MEM_TOKEN_PTR), hl
+
+	call	EVAL_FACTOR		; HL = argument (handles parens or 0)
+
+	ld	a, h
+	or	l
+	jr	z, EF_RND_ZERO		; arg == 0: return raw random
+
+	push	hl			; save arg
+	call	RAND16			; HL = random value
+	pop	de			; DE = arg
+	ex	de, hl			; HL = arg, DE = random
+	call	MOD16			; HL = random % arg
+	inc	hl			; HL = (random % arg) + 1
+	ret
+
+EF_RND_ZERO:
+	call	RAND16			; HL = raw random
+	ret
+
+EF_NOT_RND:
 	; --- Parenthesized expression '(' ---
 	cp	'('
 	jr	nz, EF_NOT_PAREN
