@@ -72,6 +72,28 @@ EF_RND_ZERO:
 	ret
 
 EF_NOT_RND:
+	; --- ABS function (0xA2) ---
+	cp	TK_ABS
+	jr	nz, EF_NOT_ABS
+
+	inc	hl			; advance past ABS token
+	ld	(MEM_TOKEN_PTR), hl
+
+	call	EVAL_FACTOR		; HL = argument
+
+	bit	7, h			; check sign bit
+	ret	z			; positive: return as-is
+
+	ld	a, l			; negate HL (two's complement)
+	cpl
+	ld	l, a
+	ld	a, h
+	cpl
+	ld	h, a
+	inc	hl
+	ret
+
+EF_NOT_ABS:
 	; --- Parenthesized expression '(' ---
 	cp	'('
 	jr	nz, EF_NOT_PAREN
