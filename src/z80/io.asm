@@ -4,21 +4,26 @@
 ; -----------------------------------------------------------------------
 
 ; -----------------------------------------------------------------------
-; INCHAR - Read a single character from TTY (Port 0x00)
+; INCHAR - Read a single character from the Virtual TTY
 ; -----------------------------------------------------------------------
-; Blocks until a character is available from the TTY input.
+; Polls STATUS port ($01) until RX ready (bit 0), then reads DATA ($00).
+; Blocks until a character is available.
 ;
 ; Input:  None
 ; Output: A = ASCII value of the character read
+; Clobbers: None
 ; -----------------------------------------------------------------------
 INCHAR:
-	in	a, (0)
+	in	a, (1)			; read STATUS port
+	and	$01			; check RX ready (bit 0)
+	jr	z, INCHAR		; spin if no data
+	in	a, (0)			; read DATA port
 	ret
 
 ; -----------------------------------------------------------------------
-; OUTCHAR - Write a single character to TTY (Port 0x00)
+; OUTCHAR - Write a single character to the Virtual TTY
 ; -----------------------------------------------------------------------
-; Sends the character to the TTY output.
+; Sends the character to the DATA port ($00) for host stdout output.
 ;
 ; Input:  A = ASCII character to print
 ; Output: None
@@ -128,11 +133,11 @@ READ_LINE:
 RL_CHAR_LOOP:
 	call	INCHAR			; A = character from TTY
 
-	cp	10			; newline?
+	cp	10			; LF (newline)?
 	jr	z, RL_DONE
 
-	cp	13			; carriage return?
-	jr	z, RL_CHAR_LOOP
+	cp	13			; CR (carriage return)?
+	jr	z, RL_DONE
 
 	ld	(hl), a
 	inc	hl
