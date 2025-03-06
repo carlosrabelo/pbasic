@@ -1,4 +1,5 @@
 #include <core/io.hpp>
+#include <core/signals.hpp>
 
 namespace pbasic {
 
@@ -40,7 +41,7 @@ void IO::print_ok() {
 std::optional<std::string> IO::read_line() {
     std::string line;
     if (!std::getline(in_, line)) {
-        if (!in_.eof()) {
+        if (check_interrupted() || !in_.eof()) {
             in_.clear();
         }
         return std::nullopt;
