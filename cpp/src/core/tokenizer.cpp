@@ -170,4 +170,123 @@ std::vector<Token> Tokenizer::tokenize(const std::string& input) {
     return tokens;
 }
 
+std::string detokenize(const std::vector<Token>& tokens) {
+    std::string out;
+    for (const auto& tok : tokens) {
+        switch (tok.type) {
+            case TokenType::KW_LET:
+                out += "LET ";
+                break;
+            case TokenType::KW_GOTO:
+                out += "GOTO ";
+                break;
+            case TokenType::KW_GOSUB:
+                out += "GOSUB ";
+                break;
+            case TokenType::KW_PRINT:
+                out += "PRINT ";
+                break;
+            case TokenType::KW_IF:
+                out += "IF ";
+                break;
+            case TokenType::KW_INPUT:
+                out += "INPUT ";
+                break;
+            case TokenType::KW_RETURN:
+                out += "RETURN";
+                break;
+            case TokenType::KW_END:
+                out += "END";
+                break;
+            case TokenType::KW_LIST:
+                out += "LIST";
+                break;
+            case TokenType::KW_RUN:
+                out += "RUN";
+                break;
+            case TokenType::KW_NEW:
+                out += "NEW";
+                break;
+            case TokenType::KW_EXIT:
+                out += "EXIT";
+                break;
+            case TokenType::KW_REM:
+                out += "REM" + tok.text;
+                break;
+            case TokenType::KW_THEN:
+                out += " THEN ";
+                break;
+            case TokenType::FN_FREE:
+                out += "FREE";
+                break;
+            case TokenType::FN_RND:
+                out += "RND";
+                break;
+            case TokenType::FN_ABS:
+                out += "ABS";
+                break;
+            case TokenType::NUMBER:
+                out += std::to_string(tok.number_value);
+                break;
+            case TokenType::STRING:
+                out += "\"" + tok.text + "\"";
+                break;
+            case TokenType::VARIABLE:
+                out += tok.var_name;
+                break;
+            case TokenType::PLUS:
+                out += " + ";
+                break;
+            case TokenType::MINUS:
+                if (out.empty() || out.back() == '(' || out.back() == ' ') {
+                    out += "-";
+                } else {
+                    out += " - ";
+                }
+                break;
+            case TokenType::ASTERISK:
+                out += " * ";
+                break;
+            case TokenType::SLASH:
+                out += " / ";
+                break;
+            case TokenType::EQUAL:
+                out += " = ";
+                break;
+            case TokenType::NOT_EQUAL:
+                out += " <> ";
+                break;
+            case TokenType::LESS:
+                out += " < ";
+                break;
+            case TokenType::GREATER:
+                out += " > ";
+                break;
+            case TokenType::LESS_EQUAL:
+                out += " <= ";
+                break;
+            case TokenType::GREATER_EQUAL:
+                out += " >= ";
+                break;
+            case TokenType::LPAREN:
+                out += "(";
+                break;
+            case TokenType::RPAREN:
+                out += ")";
+                break;
+            case TokenType::COMMA:
+                out += ", ";
+                break;
+            case TokenType::SEMICOLON:
+                out += "; ";
+                break;
+            case TokenType::EOL:
+            case TokenType::END_OF_INPUT:
+            case TokenType::ILLEGAL:
+                break;
+        }
+    }
+    return out;
+}
+
 } // namespace pbasic

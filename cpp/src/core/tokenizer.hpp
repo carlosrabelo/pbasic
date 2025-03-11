@@ -20,4 +20,6 @@ private:
     size_t pos_{0};
 };
 
+std::string detokenize(const std::vector<Token>& tokens);
+
 } // namespace pbasic
