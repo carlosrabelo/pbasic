@@ -24,6 +24,7 @@ public:
     size_t line_count() const;
 
     void set_line(uint16_t line_no, std::vector<Token> tokens, std::string raw_text = "");
+    bool remove_line(uint16_t line_no);
 
 private:
     std::map<uint16_t, ProgramLine> lines_;

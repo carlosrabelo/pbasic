@@ -26,4 +26,8 @@ void Program::set_line(uint16_t line_no, std::vector<Token> tokens, std::string 
     lines_[line_no] = ProgramLine{line_no, std::move(tokens), std::move(raw_text)};
 }
 
+bool Program::remove_line(uint16_t line_no) {
+    return lines_.erase(line_no) > 0;
+}
+
 } // namespace pbasic
