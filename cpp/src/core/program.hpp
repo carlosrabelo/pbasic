@@ -30,6 +30,9 @@ public:
     const ProgramLine* get_first_line() const;
     const ProgramLine* get_next_line(uint16_t current_line_no) const;
 
+    void list(std::ostream& out) const;
+    size_t byte_size() const;
+
 private:
     std::map<uint16_t, ProgramLine> lines_;
 };
