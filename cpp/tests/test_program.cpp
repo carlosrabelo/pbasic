@@ -43,4 +43,26 @@ TEST_CASE("Program line and container structures", "[program]") {
         REQUIRE_FALSE(prog.has_line(20));
         REQUIRE(prog.empty());
     }
+
+    SECTION("Program line traversal via get_first_line and get_next_line") {
+        pbasic::Tokenizer tokenizer;
+        prog.set_line(30, tokenizer.tokenize("PRINT 30"));
+        prog.set_line(10, tokenizer.tokenize("PRINT 10"));
+        prog.set_line(20, tokenizer.tokenize("PRINT 20"));
+
+        const auto* line1 = prog.get_first_line();
+        REQUIRE(line1 != nullptr);
+        REQUIRE(line1->line_number == 10);
+
+        const auto* line2 = prog.get_next_line(10);
+        REQUIRE(line2 != nullptr);
+        REQUIRE(line2->line_number == 20);
+
+        const auto* line3 = prog.get_next_line(20);
+        REQUIRE(line3 != nullptr);
+        REQUIRE(line3->line_number == 30);
+
+        const auto* line4 = prog.get_next_line(30);
+        REQUIRE(line4 == nullptr);
+    }
 }

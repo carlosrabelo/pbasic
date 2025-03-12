@@ -30,4 +30,27 @@ bool Program::remove_line(uint16_t line_no) {
     return lines_.erase(line_no) > 0;
 }
 
+const ProgramLine* Program::get_line(uint16_t line_no) const {
+    auto it = lines_.find(line_no);
+    if (it != lines_.end()) {
+        return &it->second;
+    }
+    return nullptr;
+}
+
+const ProgramLine* Program::get_first_line() const {
+    if (lines_.empty()) {
+        return nullptr;
+    }
+    return &lines_.begin()->second;
+}
+
+const ProgramLine* Program::get_next_line(uint16_t current_line_no) const {
+    auto it = lines_.upper_bound(current_line_no);
+    if (it != lines_.end()) {
+        return &it->second;
+    }
+    return nullptr;
+}
+
 } // namespace pbasic
