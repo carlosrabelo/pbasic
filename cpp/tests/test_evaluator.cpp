@@ -72,4 +72,24 @@ TEST_CASE("Factor evaluation in expressions", "[evaluator]") {
         pbasic::Evaluator e3(t3, vars, prog, seed);
         REQUIRE(e3.eval_expression() == 65535);
     }
+
+    SECTION("Additive expressions and operator precedence") {
+        auto t1 = tokenizer.tokenize("2 + 3 * 4");
+        pbasic::Evaluator e1(t1, vars, prog, seed);
+        REQUIRE(e1.eval_expression() == 14);
+
+        auto t2 = tokenizer.tokenize("(2 + 3) * 4");
+        pbasic::Evaluator e2(t2, vars, prog, seed);
+        REQUIRE(e2.eval_expression() == 20);
+
+        auto t3 = tokenizer.tokenize("A + B");
+        vars.set('A', 10);
+        vars.set('B', 3);
+        pbasic::Evaluator e3(t3, vars, prog, seed);
+        REQUIRE(e3.eval_expression() == 13);
+
+        auto t4 = tokenizer.tokenize("50 - 20 - 10");
+        pbasic::Evaluator e4(t4, vars, prog, seed);
+        REQUIRE(e4.eval_expression() == 20);
+    }
 }

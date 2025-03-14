@@ -108,7 +108,20 @@ int32_t Evaluator::eval_term() {
 }
 
 int32_t Evaluator::eval_expression() {
-    return eval_term();
+    int32_t left = eval_term();
+
+    while (check(TokenType::PLUS) || check(TokenType::MINUS)) {
+        TokenType op = advance().type;
+        int32_t right = eval_term();
+
+        if (op == TokenType::PLUS) {
+            left += right;
+        } else {
+            left -= right;
+        }
+    }
+
+    return left;
 }
 
 bool Evaluator::eval_condition() {
