@@ -88,7 +88,23 @@ int32_t Evaluator::eval_factor() {
 }
 
 int32_t Evaluator::eval_term() {
-    return eval_factor();
+    int32_t left = eval_factor();
+
+    while (check(TokenType::ASTERISK) || check(TokenType::SLASH)) {
+        TokenType op = advance().type;
+        int32_t right = eval_factor();
+
+        uint16_t uleft = static_cast<uint16_t>(left & 0xFFFF);
+        uint16_t uright = static_cast<uint16_t>(right & 0xFFFF);
+
+        if (op == TokenType::ASTERISK) {
+            left = static_cast<int32_t>(mul16(uleft, uright));
+        } else {
+            left = static_cast<int32_t>(div16(uleft, uright));
+        }
+    }
+
+    return left;
 }
 
 int32_t Evaluator::eval_expression() {

@@ -58,4 +58,18 @@ TEST_CASE("Factor evaluation in expressions", "[evaluator]") {
         REQUIRE(r >= 1);
         REQUIRE(r <= 10);
     }
+
+    SECTION("Multiplicative term parsing and 16-bit semantics") {
+        auto t1 = tokenizer.tokenize("3 * 4");
+        pbasic::Evaluator e1(t1, vars, prog, seed);
+        REQUIRE(e1.eval_expression() == 12);
+
+        auto t2 = tokenizer.tokenize("20 / 4");
+        pbasic::Evaluator e2(t2, vars, prog, seed);
+        REQUIRE(e2.eval_expression() == 5);
+
+        auto t3 = tokenizer.tokenize("100 / 0");
+        pbasic::Evaluator e3(t3, vars, prog, seed);
+        REQUIRE(e3.eval_expression() == 65535);
+    }
 }
