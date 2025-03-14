@@ -125,7 +125,28 @@ int32_t Evaluator::eval_expression() {
 }
 
 bool Evaluator::eval_condition() {
-    return eval_expression() != 0;
+    int32_t left = eval_expression();
+
+    if (match(TokenType::EQUAL)) {
+        return left == eval_expression();
+    }
+    if (match(TokenType::NOT_EQUAL)) {
+        return left != eval_expression();
+    }
+    if (match(TokenType::LESS_EQUAL)) {
+        return left <= eval_expression();
+    }
+    if (match(TokenType::GREATER_EQUAL)) {
+        return left >= eval_expression();
+    }
+    if (match(TokenType::LESS)) {
+        return left < eval_expression();
+    }
+    if (match(TokenType::GREATER)) {
+        return left > eval_expression();
+    }
+
+    return left != 0;
 }
 
 } // namespace pbasic
