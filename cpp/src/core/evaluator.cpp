@@ -47,6 +47,28 @@ int32_t Evaluator::eval_factor() {
         return vars_.get(tokens_[cursor_ - 1].var_name);
     }
 
+    if (match(TokenType::FN_FREE)) {
+        return static_cast<int32_t>(16384 - prog_.byte_size());
+    }
+
+    if (match(TokenType::FN_RND)) {
+        match(TokenType::LPAREN);
+        int32_t x = eval_expression();
+        match(TokenType::RPAREN);
+        rand_seed_ = static_cast<uint16_t>((static_cast<uint32_t>(rand_seed_) * 25173 + 13849) & 0xFFFF);
+        if (x <= 0) {
+            return static_cast<int32_t>(rand_seed_);
+        }
+        return static_cast<int32_t>((rand_seed_ % static_cast<uint16_t>(x)) + 1);
+    }
+
+    if (match(TokenType::FN_ABS)) {
+        match(TokenType::LPAREN);
+        int32_t val = eval_expression();
+        match(TokenType::RPAREN);
+        return std::abs(val);
+    }
+
     if (match(TokenType::LPAREN)) {
         int32_t val = eval_expression();
         match(TokenType::RPAREN);
