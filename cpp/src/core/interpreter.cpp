@@ -121,7 +121,41 @@ ExecResult Interpreter::exec_list() {
     return ExecResult::Ok;
 }
 
-ExecResult Interpreter::exec_print(const std::vector<Token>&, size_t&) {
+ExecResult Interpreter::exec_print(const std::vector<Token>& tokens, size_t& cursor) {
+    bool trailing_semicolon = false;
+
+    while (cursor < tokens.size()) {
+        const auto& tok = tokens[cursor];
+
+        if (tok.type == TokenType::EOL || tok.type == TokenType::END_OF_INPUT) {
+            break;
+        }
+
+        if (tok.type == TokenType::STRING) {
+            io_.print_str(tok.text);
+            ++cursor;
+            trailing_semicolon = false;
+        } else if (tok.type == TokenType::COMMA) {
+            io_.print_str("        ");
+            ++cursor;
+            trailing_semicolon = false;
+        } else if (tok.type == TokenType::SEMICOLON) {
+            ++cursor;
+            trailing_semicolon = true;
+        } else {
+            Evaluator eval(tokens, vars_, prog_, rand_seed_);
+            eval.set_cursor(cursor);
+            int32_t val = eval.eval_expression();
+            cursor = eval.get_cursor();
+            io_.print_number(val);
+            trailing_semicolon = false;
+        }
+    }
+
+    if (!trailing_semicolon) {
+        io_.print_crlf();
+    }
+
     return ExecResult::Ok;
 }
 

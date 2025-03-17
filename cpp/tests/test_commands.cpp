@@ -21,4 +21,29 @@ TEST_CASE("Command dispatcher skeleton", "[commands]") {
         interp.execute_line("");
         REQUIRE(out.str().empty());
     }
+
+    SECTION("PRINT string literals") {
+        out.str("");
+        interp.execute_line("PRINT \"HELLO, WORLD!\"");
+        REQUIRE(out.str() == "HELLO, WORLD!\n");
+    }
+
+    SECTION("PRINT semicolon suppresses newline") {
+        out.str("");
+        interp.execute_line("PRINT \"HI \";");
+        interp.execute_line("PRINT \"THERE\"");
+        REQUIRE(out.str() == "HI THERE\n");
+    }
+
+    SECTION("PRINT comma inserts 8 spaces") {
+        out.str("");
+        interp.execute_line("PRINT 1, 2");
+        REQUIRE(out.str() == "1        2\n");
+    }
+
+    SECTION("PRINT expressions") {
+        out.str("");
+        interp.execute_line("PRINT 10 + 20");
+        REQUIRE(out.str() == "30\n");
+    }
 }
