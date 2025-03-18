@@ -88,6 +88,45 @@ ExecResult Interpreter::execute_statement(const std::vector<Token>& tokens) {
 }
 
 ExecResult Interpreter::run_program() {
+    if (prog_.empty()) {
+        io_.print_str("?NO PROGRAM\n");
+        return ExecResult::Ok;
+    }
+
+    gosub_stack_.clear();
+    halted_ = false;
+    is_running_ = true;
+
+    const ProgramLine* cur = prog_.get_first_line();
+
+    while (cur != nullptr && !halted_ && !exit_requested_) {
+        if (check_and_reset_interrupted()) {
+            halted_ = true;
+            io_.print_crlf();
+            break;
+        }
+
+        current_line_no_ = cur->line_number;
+        branch_taken_ = false;
+
+        ExecResult res = execute_statement(cur->tokens);
+        if (res == ExecResult::SyntaxError) {
+            is_running_ = false;
+            return res;
+        }
+
+        if (halted_ || exit_requested_) {
+            break;
+        }
+
+        if (branch_taken_) {
+            cur = prog_.get_line(branch_target_);
+        } else {
+            cur = prog_.get_next_line(current_line_no_);
+        }
+    }
+
+    is_running_ = false;
     return ExecResult::Ok;
 }
 
