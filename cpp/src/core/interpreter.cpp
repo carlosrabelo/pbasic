@@ -195,6 +195,10 @@ ExecResult Interpreter::exec_new() {
 }
 
 ExecResult Interpreter::exec_free() {
+    size_t byte_size = prog_.byte_size();
+    size_t free_bytes = (16384 >= byte_size) ? (16384 - byte_size) : 0;
+    io_.print_number(static_cast<int32_t>(free_bytes));
+    io_.print_crlf();
     return ExecResult::Ok;
 }
 

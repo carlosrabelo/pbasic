@@ -74,4 +74,16 @@ TEST_CASE("Command dispatcher skeleton", "[commands]") {
         REQUIRE(vars.get('X') == 0);
         REQUIRE(prog.empty());
     }
+
+    SECTION("REM is ignored") {
+        out.str("");
+        interp.execute_line("REM NOTHING TO DO");
+        REQUIRE(out.str().empty());
+    }
+
+    SECTION("FREE prints available memory") {
+        out.str("");
+        interp.execute_line("FREE");
+        REQUIRE(out.str() == "16384\n");
+    }
 }
