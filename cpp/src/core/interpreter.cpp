@@ -147,11 +147,36 @@ ExecResult Interpreter::exec_goto(const std::vector<Token>& tokens, size_t& curs
     return ExecResult::Ok;
 }
 
-ExecResult Interpreter::exec_gosub(const std::vector<Token>&, size_t&) {
-    return ExecResult::Ok;
+ExecResult Interpreter::exec_gosub(const std::vector<Token>& tokens, size_t& cursor) {
+    if (gosub_stack_.size() >= 16) {
+        syntax_error();
+        halted_ = true;
+        return ExecResult::SyntaxError;
+    }
+
+    const auto* next = prog_.get_next_line(current_line_no_);
+    gosub_stack_.push_back(next ? next->line_number : 0);
+
+    return exec_goto(tokens, cursor);
 }
 
 ExecResult Interpreter::exec_return() {
+    if (gosub_stack_.empty()) {
+        syntax_error();
+        halted_ = true;
+        return ExecResult::SyntaxError;
+    }
+
+    uint16_t ret_line = gosub_stack_.back();
+    gosub_stack_.pop_back();
+
+    if (ret_line == 0) {
+        halted_ = true;
+        return ExecResult::Ok;
+    }
+
+    branch_target_ = ret_line;
+    branch_taken_ = true;
     return ExecResult::Ok;
 }
 
