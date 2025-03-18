@@ -25,4 +25,22 @@ TEST_CASE("Stored program runner", "[flow]") {
         interp.execute_line("RUN");
         REQUIRE(out.str() == "LINE 10\nLINE 20\n");
     }
+
+    SECTION("GOTO branches to target line") {
+        prog.clear();
+        prog.set_line(10, tokenizer.tokenize("GOTO 30"));
+        prog.set_line(20, tokenizer.tokenize("PRINT \"SKIPPED\""));
+        prog.set_line(30, tokenizer.tokenize("PRINT \"LANDED\""));
+        out.str("");
+        interp.execute_line("RUN");
+        REQUIRE(out.str() == "LANDED\n");
+    }
+
+    SECTION("GOTO invalid line raises syntax error") {
+        prog.clear();
+        prog.set_line(10, tokenizer.tokenize("GOTO 999"));
+        out.str("");
+        interp.execute_line("RUN");
+        REQUIRE(out.str() == "?SYNTAX ERROR\n");
+    }
 }

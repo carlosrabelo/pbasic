@@ -130,7 +130,20 @@ ExecResult Interpreter::run_program() {
     return ExecResult::Ok;
 }
 
-ExecResult Interpreter::exec_goto(const std::vector<Token>&, size_t&) {
+ExecResult Interpreter::exec_goto(const std::vector<Token>& tokens, size_t& cursor) {
+    Evaluator eval(tokens, vars_, prog_, rand_seed_);
+    eval.set_cursor(cursor);
+    int32_t target = eval.eval_expression();
+    cursor = eval.get_cursor();
+
+    if (target < 1 || target > 65535 || !prog_.has_line(static_cast<uint16_t>(target))) {
+        syntax_error();
+        halted_ = true;
+        return ExecResult::SyntaxError;
+    }
+
+    branch_target_ = static_cast<uint16_t>(target);
+    branch_taken_ = true;
     return ExecResult::Ok;
 }
 
