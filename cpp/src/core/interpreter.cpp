@@ -290,7 +290,56 @@ ExecResult Interpreter::exec_let(const std::vector<Token>& tokens, size_t& curso
     return ExecResult::Ok;
 }
 
-ExecResult Interpreter::exec_input(const std::vector<Token>&, size_t&) {
+ExecResult Interpreter::exec_input(const std::vector<Token>& tokens, size_t& cursor) {
+    if (cursor < tokens.size() && tokens[cursor].type == TokenType::STRING) {
+        io_.print_str(tokens[cursor].text);
+        ++cursor;
+        if (cursor >= tokens.size() || tokens[cursor].type != TokenType::SEMICOLON) {
+            syntax_error();
+            return ExecResult::SyntaxError;
+        }
+        ++cursor;
+    } else {
+        io_.print_str("? ");
+    }
+
+    if (cursor >= tokens.size() || tokens[cursor].type != TokenType::VARIABLE) {
+        syntax_error();
+        return ExecResult::SyntaxError;
+    }
+
+    char var_name = tokens[cursor].var_name;
+    ++cursor;
+
+    auto line_opt = io_.read_line();
+    if (check_and_reset_interrupted()) {
+        io_.print_crlf();
+        halted_ = true;
+        return ExecResult::Stop;
+    }
+    if (!line_opt.has_value()) {
+        halted_ = true;
+        return ExecResult::Stop;
+    }
+
+    int32_t val = 0;
+    std::string s = *line_opt;
+    // Trim leading/trailing whitespace
+    size_t start = 0;
+    while (start < s.size() && std::isspace(static_cast<unsigned char>(s[start]))) ++start;
+    size_t end = s.size();
+    while (end > start && std::isspace(static_cast<unsigned char>(s[end - 1]))) --end;
+    s = s.substr(start, end - start);
+
+    if (!s.empty()) {
+        try {
+            val = std::stoi(s);
+        } catch (...) {
+            val = 0;
+        }
+    }
+
+    vars_.set(var_name, val);
     return ExecResult::Ok;
 }
 
