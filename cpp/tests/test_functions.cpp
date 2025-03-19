@@ -63,4 +63,29 @@ TEST_CASE("Interactive user input via INPUT", "[functions]") {
             REQUIRE(val <= 6);
         }
     }
+
+    SECTION("Absolute value function ABS") {
+        std::ostringstream out;
+        std::istringstream in;
+        pbasic::IO io(out, in);
+        pbasic::Program prog;
+        pbasic::VariableStore vars;
+        pbasic::Interpreter interp(io, prog, vars);
+
+        out.str("");
+        interp.execute_line("PRINT ABS(-15)");
+        REQUIRE(out.str() == "15\n");
+
+        out.str("");
+        interp.execute_line("PRINT ABS(15)");
+        REQUIRE(out.str() == "15\n");
+
+        out.str("");
+        interp.execute_line("PRINT ABS(0)");
+        REQUIRE(out.str() == "0\n");
+
+        out.str("");
+        interp.execute_line("PRINT ABS(5 - 20)");
+        REQUIRE(out.str() == "15\n");
+    }
 }
