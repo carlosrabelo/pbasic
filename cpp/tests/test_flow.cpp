@@ -96,4 +96,21 @@ TEST_CASE("Stored program runner", "[flow]") {
         interp.execute_line("RUN");
         REQUIRE(out.str() == "?SYNTAX ERROR\n");
     }
+
+    SECTION("END halts program cleanly") {
+        prog.clear();
+        prog.set_line(10, tokenizer.tokenize("PRINT \"START\""));
+        prog.set_line(20, tokenizer.tokenize("END"));
+        prog.set_line(30, tokenizer.tokenize("PRINT \"NEVER REACHED\""));
+
+        out.str("");
+        interp.execute_line("RUN");
+        REQUIRE(out.str() == "START\n");
+    }
+
+    SECTION("EXIT requests process termination") {
+        REQUIRE_FALSE(interp.exit_requested());
+        interp.execute_line("EXIT");
+        REQUIRE(interp.exit_requested());
+    }
 }

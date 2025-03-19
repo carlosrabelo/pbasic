@@ -213,11 +213,13 @@ ExecResult Interpreter::exec_if(const std::vector<Token>& tokens, size_t& cursor
 }
 
 ExecResult Interpreter::exec_end() {
+    halted_ = true;
     return ExecResult::Stop;
 }
 
 ExecResult Interpreter::exec_exit() {
     exit_requested_ = true;
+    halted_ = true;
     return ExecResult::Stop;
 }
 
