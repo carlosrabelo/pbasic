@@ -180,8 +180,36 @@ ExecResult Interpreter::exec_return() {
     return ExecResult::Ok;
 }
 
-ExecResult Interpreter::exec_if(const std::vector<Token>&, size_t&) {
-    return ExecResult::Ok;
+ExecResult Interpreter::exec_if(const std::vector<Token>& tokens, size_t& cursor) {
+    Evaluator eval(tokens, vars_, prog_, rand_seed_);
+    eval.set_cursor(cursor);
+    bool cond = eval.eval_condition();
+    cursor = eval.get_cursor();
+
+    if (cursor >= tokens.size() || tokens[cursor].type != TokenType::KW_THEN) {
+        syntax_error();
+        return ExecResult::SyntaxError;
+    }
+    ++cursor;
+
+    if (!cond) {
+        return ExecResult::Ok;
+    }
+
+    if (cursor < tokens.size() && tokens[cursor].type == TokenType::NUMBER) {
+        uint16_t target = static_cast<uint16_t>(tokens[cursor].number_value);
+        if (!prog_.has_line(target)) {
+            syntax_error();
+            halted_ = true;
+            return ExecResult::SyntaxError;
+        }
+        branch_target_ = target;
+        branch_taken_ = true;
+        return ExecResult::Ok;
+    }
+
+    std::vector<Token> remaining(tokens.begin() + cursor, tokens.end());
+    return execute_statement(remaining);
 }
 
 ExecResult Interpreter::exec_end() {
