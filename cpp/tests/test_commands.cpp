@@ -86,4 +86,11 @@ TEST_CASE("Command dispatcher skeleton", "[commands]") {
         interp.execute_line("FREE");
         REQUIRE(out.str() == "16384\n");
     }
+
+    SECTION("LIST prints stored program lines") {
+        prog.set_line(10, {pbasic::Token{pbasic::TokenType::KW_PRINT, "PRINT", 0, '\0'}, pbasic::Token{pbasic::TokenType::STRING, "HELLO", 0, '\0'}});
+        out.str("");
+        interp.execute_line("LIST");
+        REQUIRE(out.str() == "10 PRINT \"HELLO\"\n");
+    }
 }
