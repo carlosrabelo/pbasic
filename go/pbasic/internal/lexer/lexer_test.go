@@ -85,4 +85,36 @@ func TestLexerKeywordsAndVariables(t *testing.T) {
 			t.Errorf("unexpected REM token: %+v", remTokens[0])
 		}
 	})
+
+	t.Run("literals and comparison operators", func(t *testing.T) {
+		input := `100 "HELLO, WORLD!" = == <> < <= > >=`
+		tokens := Tokenize(input)
+
+		expected := []struct {
+			tokType token.Type
+			literal string
+			numVal  int32
+		}{
+			{token.NUMBER, "100", 100},
+			{token.STRING, "HELLO, WORLD!", 0},
+			{token.ASSIGN, "=", 0},
+			{token.EQ, "==", 0},
+			{token.NEQ, "<>", 0},
+			{token.LT, "<", 0},
+			{token.LE, "<=", 0},
+			{token.GT, ">", 0},
+			{token.GE, ">=", 0},
+		}
+
+		if len(tokens) != len(expected) {
+			t.Fatalf("token count mismatch: got %d, want %d", len(tokens), len(expected))
+		}
+
+		for i, exp := range expected {
+			if tokens[i].Type != exp.tokType || tokens[i].Literal != exp.literal || tokens[i].NumberVal != exp.numVal {
+				t.Errorf("token %d got {%v, %q, %d}, want {%v, %q, %d}",
+					i, tokens[i].Type, tokens[i].Literal, tokens[i].NumberVal, exp.tokType, exp.literal, exp.numVal)
+			}
+		}
+	})
 }
