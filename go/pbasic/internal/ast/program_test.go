@@ -1,8 +1,11 @@
 package ast
 
 import (
+	"bytes"
 	"reflect"
 	"testing"
+
+	"pbasic/pbasic/internal/lexer"
 )
 
 func TestProgramStoreStructures(t *testing.T) {
@@ -102,5 +105,20 @@ func TestProgramIteration(t *testing.T) {
 	next3 := prog.NextLine(30)
 	if next3 != nil {
 		t.Fatalf("NextLine(30) on last line got %+v, want nil", next3)
+	}
+}
+
+func TestProgramList(t *testing.T) {
+	prog := NewProgramStore()
+
+	prog.SetLine(20, lexer.Tokenize("PRINT \"WORLD\""), "PRINT \"WORLD\"")
+	prog.SetLine(10, lexer.Tokenize("PRINT \"HELLO\""), "PRINT \"HELLO\"")
+
+	var buf bytes.Buffer
+	prog.List(&buf)
+
+	expected := "10 PRINT \"HELLO\"\n20 PRINT \"WORLD\"\n"
+	if buf.String() != expected {
+		t.Errorf("List output got %q, want %q", buf.String(), expected)
 	}
 }
