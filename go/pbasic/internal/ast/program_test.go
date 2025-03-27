@@ -72,3 +72,35 @@ func TestRemoveLine(t *testing.T) {
 		t.Errorf("expected RemoveLine on non-existent line to return false")
 	}
 }
+
+func TestProgramIteration(t *testing.T) {
+	prog := NewProgramStore()
+
+	if first := prog.FirstLine(); first != nil {
+		t.Errorf("FirstLine on empty store should be nil, got %+v", first)
+	}
+
+	prog.SetLine(10, nil, "LINE 10")
+	prog.SetLine(20, nil, "LINE 20")
+	prog.SetLine(30, nil, "LINE 30")
+
+	first := prog.FirstLine()
+	if first == nil || first.LineNumber != 10 {
+		t.Fatalf("FirstLine got %+v, want line 10", first)
+	}
+
+	next1 := prog.NextLine(10)
+	if next1 == nil || next1.LineNumber != 20 {
+		t.Fatalf("NextLine(10) got %+v, want line 20", next1)
+	}
+
+	next2 := prog.NextLine(20)
+	if next2 == nil || next2.LineNumber != 30 {
+		t.Fatalf("NextLine(20) got %+v, want line 30", next2)
+	}
+
+	next3 := prog.NextLine(30)
+	if next3 != nil {
+		t.Fatalf("NextLine(30) on last line got %+v, want nil", next3)
+	}
+}
