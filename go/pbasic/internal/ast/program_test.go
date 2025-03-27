@@ -47,3 +47,28 @@ func TestSetLineInsertionAndReplacement(t *testing.T) {
 		t.Errorf("unexpected node after replacement: %+v", node)
 	}
 }
+
+func TestRemoveLine(t *testing.T) {
+	prog := NewProgramStore()
+
+	prog.SetLine(10, nil, "PRINT 10")
+	prog.SetLine(20, nil, "PRINT 20")
+	prog.SetLine(30, nil, "PRINT 30")
+
+	if !prog.RemoveLine(20) {
+		t.Errorf("expected RemoveLine(20) to return true")
+	}
+
+	if prog.HasLine(20) {
+		t.Errorf("expected line 20 to be deleted")
+	}
+
+	expectedOrder := []uint16{10, 30}
+	if !reflect.DeepEqual(prog.order, expectedOrder) {
+		t.Errorf("line order after remove got %v, want %v", prog.order, expectedOrder)
+	}
+
+	if prog.RemoveLine(999) {
+		t.Errorf("expected RemoveLine on non-existent line to return false")
+	}
+}
