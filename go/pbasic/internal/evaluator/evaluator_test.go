@@ -94,3 +94,41 @@ func TestBuiltinFunctions(t *testing.T) {
 		t.Errorf("RND(10) got %d, want between 1 and 10", rndVal)
 	}
 }
+
+func TestEvalTerm(t *testing.T) {
+	// 6 * 7
+	tokens := []token.Token{
+		{Type: token.NUMBER, Literal: "6", NumberVal: 6},
+		{Type: token.ASTERISK, Literal: "*"},
+		{Type: token.NUMBER, Literal: "7", NumberVal: 7},
+		{Type: token.EOL, Literal: "\n"},
+	}
+	ev := NewEvaluator(tokens, nil, nil, nil)
+	if val := ev.EvalExpression(); val != 42 {
+		t.Errorf("6 * 7 got %d, want 42", val)
+	}
+
+	// 100 / 5
+	tokens = []token.Token{
+		{Type: token.NUMBER, Literal: "100", NumberVal: 100},
+		{Type: token.SLASH, Literal: "/"},
+		{Type: token.NUMBER, Literal: "5", NumberVal: 5},
+		{Type: token.EOL, Literal: "\n"},
+	}
+	ev = NewEvaluator(tokens, nil, nil, nil)
+	if val := ev.EvalExpression(); val != 20 {
+		t.Errorf("100 / 5 got %d, want 20", val)
+	}
+
+	// 100 / 0 returns 65535
+	tokens = []token.Token{
+		{Type: token.NUMBER, Literal: "100", NumberVal: 100},
+		{Type: token.SLASH, Literal: "/"},
+		{Type: token.NUMBER, Literal: "0", NumberVal: 0},
+		{Type: token.EOL, Literal: "\n"},
+	}
+	ev = NewEvaluator(tokens, nil, nil, nil)
+	if val := ev.EvalExpression(); val != 65535 {
+		t.Errorf("100 / 0 got %d, want 65535", val)
+	}
+}
