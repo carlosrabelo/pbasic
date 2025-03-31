@@ -160,3 +160,30 @@ func (e *Evaluator) EvalExpression() int32 {
 
 	return left
 }
+
+// EvalCondition parses and evaluates a relational comparison condition.
+// Supports =, ==, <>, <=, >=, <, >. If no relational operator is present, returns left != 0.
+func (e *Evaluator) EvalCondition() bool {
+	left := e.EvalExpression()
+
+	if e.match(token.ASSIGN) || e.match(token.EQ) {
+		return left == e.EvalExpression()
+	}
+	if e.match(token.NEQ) {
+		return left != e.EvalExpression()
+	}
+	if e.match(token.LE) {
+		return left <= e.EvalExpression()
+	}
+	if e.match(token.GE) {
+		return left >= e.EvalExpression()
+	}
+	if e.match(token.LT) {
+		return left < e.EvalExpression()
+	}
+	if e.match(token.GT) {
+		return left > e.EvalExpression()
+	}
+
+	return left != 0
+}
