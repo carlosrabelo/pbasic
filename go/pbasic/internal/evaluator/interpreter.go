@@ -162,6 +162,15 @@ func (interp *Interpreter) execLet(tokens []token.Token, cursor *int) ExecResult
 }
 
 func (interp *Interpreter) execNew() ExecResult {
+	if interp.Prog != nil {
+		interp.Prog.Clear()
+	}
+	if interp.Vars != nil {
+		interp.Vars.Clear()
+	}
+	if interp.Out != nil {
+		fmt.Fprintln(interp.Out, "OK")
+	}
 	return ExecOk
 }
 

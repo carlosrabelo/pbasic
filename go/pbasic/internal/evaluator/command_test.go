@@ -158,3 +158,37 @@ func TestExecLet(t *testing.T) {
 		t.Errorf("Malformed LET got %v, want ExecSyntaxError", res)
 	}
 }
+
+func TestExecNew(t *testing.T) {
+	out := &bytes.Buffer{}
+	vars := NewVariableStore()
+	vars.Set('A', 99)
+	vars.Set('Z', 88)
+
+	prog := ast.NewProgramStore()
+	prog.SetLine(10, []token.Token{{Type: token.PRINT, Literal: "PRINT"}}, "PRINT")
+
+	interp := NewInterpreter(nil, out, prog, vars, 12345)
+
+	tokens := []token.Token{
+		{Type: token.NEW, Literal: "NEW"},
+		{Type: token.EOL, Literal: "\n"},
+	}
+	res := interp.ExecuteStatement(tokens)
+	if res != ExecOk {
+		t.Errorf("NEW returned %v, want ExecOk", res)
+	}
+
+	if out.String() != "OK\n" {
+		t.Errorf("NEW output got %q, want 'OK\\n'", out.String())
+	}
+	if !prog.Empty() {
+		t.Errorf("expected prog to be empty after NEW")
+	}
+	if val := vars.Get('A'); val != 0 {
+		t.Errorf("expected variable A to be 0 after NEW, got %d", val)
+	}
+	if val := vars.Get('Z'); val != 0 {
+		t.Errorf("expected variable Z to be 0 after NEW, got %d", val)
+	}
+}
