@@ -38,3 +38,72 @@ func TestCommandDispatcherSkeleton(t *testing.T) {
 		t.Errorf("output got %q, want '?SYNTAX ERROR'", out.String())
 	}
 }
+
+func TestExecPrint(t *testing.T) {
+	out := &bytes.Buffer{}
+	vars := NewVariableStore()
+	vars.Set('A', 42)
+	interp := NewInterpreter(nil, out, nil, vars, 12345)
+
+	// String literal
+	out.Reset()
+	tokens := []token.Token{
+		{Type: token.PRINT, Literal: "PRINT"},
+		{Type: token.STRING, Literal: "HELLO, WORLD!"},
+		{Type: token.EOL, Literal: "\n"},
+	}
+	interp.ExecuteStatement(tokens)
+	if out.String() != "HELLO, WORLD!\n" {
+		t.Errorf("PRINT string got %q, want %q", out.String(), "HELLO, WORLD!\n")
+	}
+
+	// Comma spacing (8 spaces)
+	out.Reset()
+	tokens = []token.Token{
+		{Type: token.PRINT, Literal: "PRINT"},
+		{Type: token.NUMBER, NumberVal: 1},
+		{Type: token.COMMA, Literal: ","},
+		{Type: token.NUMBER, NumberVal: 2},
+		{Type: token.EOL, Literal: "\n"},
+	}
+	interp.ExecuteStatement(tokens)
+	if out.String() != "1        2\n" {
+		t.Errorf("PRINT comma got %q, want %q", out.String(), "1        2\n")
+	}
+
+	// Semicolon newline suppression
+	out.Reset()
+	tokens = []token.Token{
+		{Type: token.PRINT, Literal: "PRINT"},
+		{Type: token.STRING, Literal: "HI "},
+		{Type: token.SEMICOLON, Literal: ";"},
+		{Type: token.EOL, Literal: "\n"},
+	}
+	interp.ExecuteStatement(tokens)
+	if out.String() != "HI " {
+		t.Errorf("PRINT semicolon got %q, want %q", out.String(), "HI ")
+	}
+
+	// Followed by another print
+	tokens = []token.Token{
+		{Type: token.PRINT, Literal: "PRINT"},
+		{Type: token.STRING, Literal: "THERE"},
+		{Type: token.EOL, Literal: "\n"},
+	}
+	interp.ExecuteStatement(tokens)
+	if out.String() != "HI THERE\n" {
+		t.Errorf("PRINT sequence got %q, want %q", out.String(), "HI THERE\n")
+	}
+
+	// Variable printing
+	out.Reset()
+	tokens = []token.Token{
+		{Type: token.PRINT, Literal: "PRINT"},
+		{Type: token.IDENT, Literal: "A", VarName: 'A'},
+		{Type: token.EOL, Literal: "\n"},
+	}
+	interp.ExecuteStatement(tokens)
+	if out.String() != "42\n" {
+		t.Errorf("PRINT A got %q, want %q", out.String(), "42\n")
+	}
+}
