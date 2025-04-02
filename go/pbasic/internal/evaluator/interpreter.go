@@ -18,18 +18,19 @@ const (
 
 // Interpreter coordinates statement execution, program storage, variables, and I/O.
 type Interpreter struct {
-	In            io.Reader
-	Out           io.Writer
-	Prog          *ast.ProgramStore
-	Vars          *VariableStore
-	RandSeed      uint16
-	GosubStack    []uint16
-	CurrentLineNo uint16
-	BranchTarget  uint16
-	BranchTaken   bool
-	Halted        bool
-	ExitRequested bool
-	IsRunning     bool
+	In               io.Reader
+	Out              io.Writer
+	Prog             *ast.ProgramStore
+	Vars             *VariableStore
+	RandSeed         uint16
+	GosubStack       []uint16
+	CurrentLineNo    uint16
+	BranchTarget     uint16
+	BranchTaken      bool
+	Halted           bool
+	ExitRequested    bool
+	IsRunning        bool
+	CheckInterrupted func() bool
 }
 
 // NewInterpreter creates a new Interpreter instance.
@@ -68,6 +69,12 @@ func (interp *Interpreter) ExecuteStatement(tokens []token.Token) ExecResult {
 
 	case token.REM:
 		return ExecOk
+
+	case token.RUN:
+		return interp.RunProgram()
+
+	case token.LIST:
+		return interp.execList()
 
 	case token.PRINT:
 		cursor++
@@ -185,6 +192,61 @@ func (interp *Interpreter) execFree() ExecResult {
 	}
 	if interp.Out != nil {
 		fmt.Fprintln(interp.Out, freeBytes)
+	}
+	return ExecOk
+}
+
+// RunProgram executes all stored program lines in sequential order.
+func (interp *Interpreter) RunProgram() ExecResult {
+	if interp.Prog == nil || interp.Prog.Empty() {
+		if interp.Out != nil {
+			fmt.Fprintln(interp.Out, "?NO PROGRAM")
+		}
+		return ExecOk
+	}
+
+	interp.GosubStack = interp.GosubStack[:0]
+	interp.Halted = false
+	interp.IsRunning = true
+
+	cur := interp.Prog.FirstLine()
+
+	for cur != nil && !interp.Halted && !interp.ExitRequested {
+		if interp.CheckInterrupted != nil && interp.CheckInterrupted() {
+			interp.Halted = true
+			if interp.Out != nil {
+				fmt.Fprintln(interp.Out)
+			}
+			break
+		}
+
+		interp.CurrentLineNo = cur.LineNumber
+		interp.BranchTaken = false
+
+		res := interp.ExecuteStatement(cur.Tokens)
+		if res == ExecSyntaxError {
+			interp.IsRunning = false
+			return res
+		}
+
+		if interp.Halted || interp.ExitRequested {
+			break
+		}
+
+		if interp.BranchTaken {
+			cur = interp.Prog.GetLine(interp.BranchTarget)
+		} else {
+			cur = interp.Prog.NextLine(interp.CurrentLineNo)
+		}
+	}
+
+	interp.IsRunning = false
+	return ExecOk
+}
+
+func (interp *Interpreter) execList() ExecResult {
+	if interp.Prog != nil && interp.Out != nil {
+		interp.Prog.List(interp.Out)
 	}
 	return ExecOk
 }
