@@ -76,6 +76,10 @@ func (interp *Interpreter) ExecuteStatement(tokens []token.Token) ExecResult {
 	case token.LIST:
 		return interp.execList()
 
+	case token.GOTO:
+		cursor++
+		return interp.execGoto(tokens, &cursor)
+
 	case token.PRINT:
 		cursor++
 		return interp.execPrint(tokens, &cursor)
@@ -241,6 +245,23 @@ func (interp *Interpreter) RunProgram() ExecResult {
 	}
 
 	interp.IsRunning = false
+	return ExecOk
+}
+
+func (interp *Interpreter) execGoto(tokens []token.Token, cursor *int) ExecResult {
+	eval := NewEvaluator(tokens, interp.Vars, interp.Prog, &interp.RandSeed)
+	eval.SetCursor(*cursor)
+	target := eval.EvalExpression()
+	*cursor = eval.GetCursor()
+
+	if target < 1 || target > 65535 || interp.Prog == nil || !interp.Prog.HasLine(uint16(target)) {
+		interp.syntaxError()
+		interp.Halted = true
+		return ExecSyntaxError
+	}
+
+	interp.BranchTarget = uint16(target)
+	interp.BranchTaken = true
 	return ExecOk
 }
 
