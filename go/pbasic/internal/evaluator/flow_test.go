@@ -185,3 +185,84 @@ func TestExecGosubAndReturn(t *testing.T) {
 		t.Errorf("GOSUB overflow got %v, want ExecSyntaxError", res)
 	}
 }
+
+func TestExecIfThen(t *testing.T) {
+	out := &bytes.Buffer{}
+	prog := ast.NewProgramStore()
+	interp := NewInterpreter(nil, out, prog, nil, 12345)
+
+	// Condition true with PRINT
+	out.Reset()
+	tokens := []token.Token{
+		{Type: token.IF, Literal: "IF"},
+		{Type: token.NUMBER, NumberVal: 5},
+		{Type: token.ASSIGN, Literal: "="},
+		{Type: token.NUMBER, NumberVal: 5},
+		{Type: token.THEN, Literal: "THEN"},
+		{Type: token.PRINT, Literal: "PRINT"},
+		{Type: token.STRING, Literal: "EQUAL"},
+		{Type: token.EOL},
+	}
+	interp.ExecuteStatement(tokens)
+	if out.String() != "EQUAL\n" {
+		t.Errorf("IF true with PRINT got %q, want 'EQUAL\\n'", out.String())
+	}
+
+	// Condition false skips
+	out.Reset()
+	tokens = []token.Token{
+		{Type: token.IF, Literal: "IF"},
+		{Type: token.NUMBER, NumberVal: 5},
+		{Type: token.ASSIGN, Literal: "="},
+		{Type: token.NUMBER, NumberVal: 6},
+		{Type: token.THEN, Literal: "THEN"},
+		{Type: token.PRINT, Literal: "PRINT"},
+		{Type: token.STRING, Literal: "NEVER"},
+		{Type: token.EOL},
+	}
+	interp.ExecuteStatement(tokens)
+	if out.String() != "" {
+		t.Errorf("IF false executed THEN clause unexpectedly: %q", out.String())
+	}
+
+	// Condition true with implicit GOTO line number
+	prog.Clear()
+	prog.SetLine(10, []token.Token{
+		{Type: token.IF, Literal: "IF"},
+		{Type: token.NUMBER, NumberVal: 1},
+		{Type: token.LT, Literal: "<"},
+		{Type: token.NUMBER, NumberVal: 2},
+		{Type: token.THEN, Literal: "THEN"},
+		{Type: token.NUMBER, NumberVal: 30},
+		{Type: token.EOL},
+	}, "")
+	prog.SetLine(20, []token.Token{
+		{Type: token.PRINT, Literal: "PRINT"},
+		{Type: token.STRING, Literal: "SKIPPED"},
+		{Type: token.EOL},
+	}, "")
+	prog.SetLine(30, []token.Token{
+		{Type: token.PRINT, Literal: "PRINT"},
+		{Type: token.STRING, Literal: "BRANCHED"},
+		{Type: token.EOL},
+	}, "")
+
+	out.Reset()
+	interp.RunProgram()
+	if out.String() != "BRANCHED\n" {
+		t.Errorf("IF implicit GOTO got %q, want 'BRANCHED\\n'", out.String())
+	}
+
+	// Missing THEN keyword
+	out.Reset()
+	tokens = []token.Token{
+		{Type: token.IF, Literal: "IF"},
+		{Type: token.NUMBER, NumberVal: 1},
+		{Type: token.PRINT, Literal: "PRINT"},
+		{Type: token.EOL},
+	}
+	res := interp.ExecuteStatement(tokens)
+	if res != ExecSyntaxError {
+		t.Errorf("IF missing THEN got %v, want ExecSyntaxError", res)
+	}
+}
