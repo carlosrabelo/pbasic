@@ -91,6 +91,12 @@ func (interp *Interpreter) ExecuteStatement(tokens []token.Token) ExecResult {
 		cursor++
 		return interp.execIf(tokens, &cursor)
 
+	case token.END:
+		return interp.execEnd()
+
+	case token.EXIT:
+		return interp.execExit()
+
 	case token.PRINT:
 		cursor++
 		return interp.execPrint(tokens, &cursor)
@@ -345,6 +351,17 @@ func (interp *Interpreter) execIf(tokens []token.Token, cursor *int) ExecResult 
 
 	remaining := tokens[*cursor:]
 	return interp.ExecuteStatement(remaining)
+}
+
+func (interp *Interpreter) execEnd() ExecResult {
+	interp.Halted = true
+	return ExecStop
+}
+
+func (interp *Interpreter) execExit() ExecResult {
+	interp.ExitRequested = true
+	interp.Halted = true
+	return ExecStop
 }
 
 func (interp *Interpreter) execList() ExecResult {
