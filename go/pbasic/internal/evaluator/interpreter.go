@@ -80,6 +80,13 @@ func (interp *Interpreter) ExecuteStatement(tokens []token.Token) ExecResult {
 		cursor++
 		return interp.execGoto(tokens, &cursor)
 
+	case token.GOSUB:
+		cursor++
+		return interp.execGosub(tokens, &cursor)
+
+	case token.RETURN:
+		return interp.execReturn()
+
 	case token.PRINT:
 		cursor++
 		return interp.execPrint(tokens, &cursor)
@@ -261,6 +268,45 @@ func (interp *Interpreter) execGoto(tokens []token.Token, cursor *int) ExecResul
 	}
 
 	interp.BranchTarget = uint16(target)
+	interp.BranchTaken = true
+	return ExecOk
+}
+
+func (interp *Interpreter) execGosub(tokens []token.Token, cursor *int) ExecResult {
+	if len(interp.GosubStack) >= 16 {
+		interp.syntaxError()
+		interp.Halted = true
+		return ExecSyntaxError
+	}
+
+	var retLine uint16
+	if interp.Prog != nil {
+		if next := interp.Prog.NextLine(interp.CurrentLineNo); next != nil {
+			retLine = next.LineNumber
+		}
+	}
+	interp.GosubStack = append(interp.GosubStack, retLine)
+
+	return interp.execGoto(tokens, cursor)
+}
+
+func (interp *Interpreter) execReturn() ExecResult {
+	if len(interp.GosubStack) == 0 {
+		interp.syntaxError()
+		interp.Halted = true
+		return ExecSyntaxError
+	}
+
+	lastIdx := len(interp.GosubStack) - 1
+	retLine := interp.GosubStack[lastIdx]
+	interp.GosubStack = interp.GosubStack[:lastIdx]
+
+	if retLine == 0 {
+		interp.Halted = true
+		return ExecOk
+	}
+
+	interp.BranchTarget = retLine
 	interp.BranchTaken = true
 	return ExecOk
 }
