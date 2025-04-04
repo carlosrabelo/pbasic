@@ -107,3 +107,39 @@ func TestPRNGAndRND(t *testing.T) {
 		}
 	}
 }
+
+func TestABSFunction(t *testing.T) {
+	if got := Abs32(-15); got != 15 {
+		t.Errorf("Abs32(-15) got %d, want 15", got)
+	}
+	if got := Abs32(15); got != 15 {
+		t.Errorf("Abs32(15) got %d, want 15", got)
+	}
+	if got := Abs32(0); got != 0 {
+		t.Errorf("Abs32(0) got %d, want 0", got)
+	}
+
+	tests := []struct {
+		arg  int32
+		want int32
+	}{
+		{-15, 15},
+		{15, 15},
+		{0, 0},
+		{-1000000, 1000000},
+	}
+
+	for _, tt := range tests {
+		tokens := []token.Token{
+			{Type: token.ABS, Literal: "ABS"},
+			{Type: token.LPAREN, Literal: "("},
+			{Type: token.NUMBER, NumberVal: tt.arg},
+			{Type: token.RPAREN, Literal: ")"},
+			{Type: token.EOL},
+		}
+		ev := NewEvaluator(tokens, nil, nil, nil)
+		if got := ev.EvalExpression(); got != tt.want {
+			t.Errorf("ABS(%d) got %d, want %d", tt.arg, got, tt.want)
+		}
+	}
+}

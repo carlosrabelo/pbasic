@@ -108,10 +108,7 @@ func (e *Evaluator) evalFactor() int32 {
 		e.match(token.LPAREN)
 		val := e.EvalExpression()
 		e.match(token.RPAREN)
-		if val < 0 {
-			return -val
-		}
-		return val
+		return Abs32(val)
 	}
 
 	if e.match(token.LPAREN) {
