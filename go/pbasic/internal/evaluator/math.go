@@ -37,3 +37,9 @@ func Sub32(a, b int32) int32 {
 func Neg32(a int32) int32 {
 	return -a
 }
+
+// NextRND advances the 16-bit PRNG linear congruential generator and returns the new seed.
+func NextRND(seed *uint16) uint16 {
+	*seed = uint16((uint32(*seed)*25173 + 13849) & 0xFFFF)
+	return *seed
+}

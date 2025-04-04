@@ -25,6 +25,16 @@ func NewEvaluator(tokens []token.Token, vars *VariableStore, prog *ast.ProgramSt
 	}
 }
 
+// GetCursor returns the current token cursor index.
+func (e *Evaluator) GetCursor() int {
+	return e.cursor
+}
+
+// SetCursor sets the current token cursor index.
+func (e *Evaluator) SetCursor(c int) {
+	e.cursor = c
+}
+
 func (e *Evaluator) isAtEnd() bool {
 	return e.cursor >= len(e.tokens) ||
 		e.tokens[e.cursor].Type == token.EOL ||
@@ -85,11 +95,11 @@ func (e *Evaluator) evalFactor() int32 {
 		x := e.EvalExpression()
 		e.match(token.RPAREN)
 		if e.randSeed != nil {
-			*e.randSeed = uint16((uint32(*e.randSeed)*25173 + 13849) & 0xFFFF)
+			rnd := NextRND(e.randSeed)
 			if x <= 0 {
-				return int32(*e.randSeed)
+				return int32(rnd)
 			}
-			return int32((*e.randSeed % uint16(x)) + 1)
+			return int32((rnd % uint16(x)) + 1)
 		}
 		return 0
 	}
