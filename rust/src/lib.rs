@@ -1,5 +1,7 @@
 //! PBasic interpreter library.
 
+pub mod repl;
+
 pub fn banner() -> &'static str {
     "PBasic\n"
 }
