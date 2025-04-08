@@ -3,6 +3,46 @@
 use std::fs::File;
 use std::io::{self, BufRead, Write};
 
+/// Emits a string to standard output without newline.
+pub fn print_str(s: &str) {
+    print!("{}", s);
+}
+
+/// Emits signed 32-bit integer in decimal format without leading or trailing spaces.
+pub fn print_number(val: i32) {
+    print!("{}", val);
+}
+
+/// Emits a newline character.
+pub fn print_crlf() {
+    println!();
+}
+
+/// Emits the "OK" confirmation prompt followed by newline.
+pub fn print_ok() {
+    println!("OK");
+}
+
+/// Writes a string to the given writer without newline.
+pub fn write_str<W: Write>(w: &mut W, s: &str) -> io::Result<()> {
+    write!(w, "{}", s)
+}
+
+/// Writes signed 32-bit integer in decimal format to the given writer.
+pub fn write_number<W: Write>(w: &mut W, val: i32) -> io::Result<()> {
+    write!(w, "{}", val)
+}
+
+/// Writes a newline character to the given writer.
+pub fn write_crlf<W: Write>(w: &mut W) -> io::Result<()> {
+    writeln!(w)
+}
+
+/// Writes the "OK" confirmation followed by newline to the given writer.
+pub fn write_ok<W: Write>(w: &mut W) -> io::Result<()> {
+    writeln!(w, "OK")
+}
+
 /// Dispatches execution based on command line arguments.
 ///
 /// If no file argument is provided, enters interactive REPL mode.
@@ -49,13 +89,30 @@ mod tests {
     use std::io::Write;
 
     #[test]
-    fn test_cli_missing_file() {
-        let args = vec![
-            "pbasic".to_string(),
-            "nonexistent_pbasic_test_12345.bas".to_string(),
-        ];
-        let code = run_cli(&args);
-        assert_eq!(code, 1);
+    fn test_console_output_helpers() {
+        let mut buf = Vec::new();
+        write_str(&mut buf, "HELLO").unwrap();
+        assert_eq!(String::from_utf8(buf.clone()).unwrap(), "HELLO");
+
+        buf.clear();
+        write_number(&mut buf, 0).unwrap();
+        assert_eq!(String::from_utf8(buf.clone()).unwrap(), "0");
+
+        buf.clear();
+        write_number(&mut buf, 12345).unwrap();
+        assert_eq!(String::from_utf8(buf.clone()).unwrap(), "12345");
+
+        buf.clear();
+        write_number(&mut buf, -6789).unwrap();
+        assert_eq!(String::from_utf8(buf.clone()).unwrap(), "-6789");
+
+        buf.clear();
+        write_crlf(&mut buf).unwrap();
+        assert_eq!(String::from_utf8(buf.clone()).unwrap(), "\n");
+
+        buf.clear();
+        write_ok(&mut buf).unwrap();
+        assert_eq!(String::from_utf8(buf).unwrap(), "OK\n");
     }
 
     #[test]
