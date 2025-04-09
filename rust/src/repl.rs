@@ -107,6 +107,7 @@ pub fn run_cli(args: &[String]) -> i32 {
 }
 
 pub fn run() {
+    crate::signals::install_signal_handlers();
     print!("{}", crate::banner());
     let stdin = io::stdin();
     let stdout = io::stdout();
@@ -119,7 +120,63 @@ pub fn run_file<R: BufRead>(_reader: R) {
     // Stored program loading and execution will be integrated in subsequent tasks
 }
 
-pub fn run_loop<R: BufRead, W: Write>(_reader: &mut R, _writer: &mut W) -> io::Result<()> {
+/// Runs the interactive REPL loop reading from `reader` and writing to `writer`.
+pub fn run_loop<R: BufRead, W: Write>(reader: &mut R, writer: &mut W) -> io::Result<()> {
+    loop {
+        if crate::signals::check_and_reset_interrupted() {
+            writeln!(writer)?;
+        }
+        write!(writer, "> ")?;
+        writer.flush()?;
+
+        let line_opt = match read_line(reader) {
+            Ok(opt) => opt,
+            Err(e) => {
+                if crate::signals::check_and_reset_interrupted() {
+                    writeln!(writer)?;
+                    continue;
+                }
+                return Err(e);
+            }
+        };
+
+        if crate::signals::check_and_reset_interrupted() {
+            writeln!(writer)?;
+            continue;
+        }
+
+        let line = match line_opt {
+            Some(l) => l,
+            None => {
+                writeln!(writer)?;
+                break;
+            }
+        };
+
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        // Check if line begins with a line number
+        let mut parts = trimmed.splitn(2, |c: char| c.is_ascii_whitespace());
+        let first_word = parts.next().unwrap_or("");
+        if let Ok(line_num) = first_word.parse::<u16>() {
+            let rest = parts.next().unwrap_or("").trim();
+            handle_numbered_line(line_num, rest);
+        } else {
+            handle_immediate_line(trimmed, writer)?;
+        }
+    }
+    Ok(())
+}
+
+fn handle_numbered_line(_line_num: u16, _rest: &str) {
+    // Will be connected to Program store in 003
+}
+
+fn handle_immediate_line<W: Write>(_line: &str, _writer: &mut W) -> io::Result<()> {
+    // Will be connected to statement dispatcher in 006
     Ok(())
 }
 
@@ -178,6 +235,29 @@ mod tests {
 
         let line3 = read_line(&mut cursor).unwrap();
         assert_eq!(line3, None);
+    }
+
+    #[test]
+    fn test_repl_run_loop() {
+        let input = "10 PRINT \"HI\"\nPRINT 42\n\n";
+        let mut cursor = std::io::Cursor::new(input);
+        let mut output = Vec::new();
+
+        run_loop(&mut cursor, &mut output).unwrap();
+        let out_str = String::from_utf8(output).unwrap();
+        assert!(out_str.contains("> "));
+    }
+
+    #[test]
+    fn test_repl_run_loop_interrupt() {
+        crate::signals::set_interrupted(true);
+        let input = "";
+        let mut cursor = std::io::Cursor::new(input);
+        let mut output = Vec::new();
+
+        run_loop(&mut cursor, &mut output).unwrap();
+        let out_str = String::from_utf8(output).unwrap();
+        assert!(out_str.contains("\n> "));
     }
 
     #[test]
