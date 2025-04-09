@@ -2,6 +2,7 @@
 
 pub mod repl;
 pub mod signals;
+pub mod token;
 
 pub fn banner() -> &'static str {
     "PBasic\n"
