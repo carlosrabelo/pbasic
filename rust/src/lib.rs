@@ -1,5 +1,6 @@
 //! PBasic interpreter library.
 
+pub mod lexer;
 pub mod repl;
 pub mod signals;
 pub mod token;
