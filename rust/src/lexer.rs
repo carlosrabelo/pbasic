@@ -87,6 +87,40 @@ impl Lexer {
                     self.advance();
                     tokens.push(Token::new(TokenType::Slash, "/"));
                 }
+                '=' => {
+                    self.advance();
+                    tokens.push(Token::new(TokenType::Equal, "="));
+                }
+                '<' => {
+                    self.advance();
+                    if self.peek() == Some('>') {
+                        self.advance();
+                        tokens.push(Token::new(TokenType::NotEqual, "<>"));
+                    } else if self.peek() == Some('=') {
+                        self.advance();
+                        tokens.push(Token::new(TokenType::LessEqual, "<="));
+                    } else {
+                        tokens.push(Token::new(TokenType::Less, "<"));
+                    }
+                }
+                '>' => {
+                    self.advance();
+                    if self.peek() == Some('=') {
+                        self.advance();
+                        tokens.push(Token::new(TokenType::GreaterEqual, ">="));
+                    } else {
+                        tokens.push(Token::new(TokenType::Greater, ">"));
+                    }
+                }
+                '"' => {
+                    self.advance();
+                    let s = self.read_string();
+                    tokens.push(Token::new(TokenType::String(s.clone()), s));
+                }
+                _ if ch.is_ascii_digit() => {
+                    let (num_str, val) = self.read_number();
+                    tokens.push(Token::new(TokenType::Number(val), num_str));
+                }
                 _ if ch.is_ascii_alphabetic() => {
                     let ident = self.read_identifier();
                     match ident.as_str() {
@@ -152,6 +186,36 @@ impl Lexer {
             self.advance();
         }
         rest
+    }
+
+    fn read_string(&mut self) -> String {
+        let mut s = String::new();
+        while let Some(ch) = self.peek() {
+            if ch == '"' {
+                self.advance();
+                break;
+            }
+            if ch == '\n' || ch == '\r' {
+                break;
+            }
+            s.push(ch);
+            self.advance();
+        }
+        s
+    }
+
+    fn read_number(&mut self) -> (String, i32) {
+        let mut s = String::new();
+        while let Some(ch) = self.peek() {
+            if ch.is_ascii_digit() {
+                s.push(ch);
+                self.advance();
+            } else {
+                break;
+            }
+        }
+        let val = s.parse::<i32>().unwrap_or(0);
+        (s, val)
     }
 }
 
@@ -219,5 +283,25 @@ mod tests {
         let tokens = tokenize("REM This is a test comment 123");
         assert_eq!(tokens[0].token_type, TokenType::Rem);
         assert_eq!(tokens[0].text, "This is a test comment 123");
+    }
+
+    #[test]
+    fn test_literals_and_operators() {
+        let tokens = tokenize("100 \"HELLO WORLD\" = <> < <= > >=");
+        let types: Vec<TokenType> = tokens.into_iter().map(|t| t.token_type).collect();
+        assert_eq!(
+            types,
+            vec![
+                TokenType::Number(100),
+                TokenType::String("HELLO WORLD".to_string()),
+                TokenType::Equal,
+                TokenType::NotEqual,
+                TokenType::Less,
+                TokenType::LessEqual,
+                TokenType::Greater,
+                TokenType::GreaterEqual,
+                TokenType::Eol,
+            ]
+        );
     }
 }
