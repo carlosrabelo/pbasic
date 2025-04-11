@@ -60,6 +60,18 @@ impl Program {
     pub fn get_line(&self, line_no: u16) -> Option<&ProgramLine> {
         self.lines.get(&line_no)
     }
+
+    pub fn first_line(&self) -> Option<&ProgramLine> {
+        self.lines.values().next()
+    }
+
+    pub fn next_line(&self, current: u16) -> Option<&ProgramLine> {
+        use std::ops::Bound;
+        self.lines
+            .range((Bound::Excluded(current), Bound::Unbounded))
+            .next()
+            .map(|(_, line)| line)
+    }
 }
 
 #[cfg(test)]
@@ -111,5 +123,27 @@ mod tests {
 
         assert!(!prog.remove_line(99));
         assert_eq!(prog.len(), 1);
+    }
+
+    #[test]
+    fn test_first_and_next_line() {
+        let mut prog = Program::new();
+        assert!(prog.first_line().is_none());
+        assert!(prog.next_line(10).is_none());
+
+        prog.set_line(10, vec![], "PRINT 10".to_string());
+        prog.set_line(30, vec![], "PRINT 30".to_string());
+        prog.set_line(20, vec![], "PRINT 20".to_string());
+
+        let first = prog.first_line().unwrap();
+        assert_eq!(first.line_number, 10);
+
+        let second = prog.next_line(10).unwrap();
+        assert_eq!(second.line_number, 20);
+
+        let third = prog.next_line(20).unwrap();
+        assert_eq!(third.line_number, 30);
+
+        assert!(prog.next_line(30).is_none());
     }
 }
