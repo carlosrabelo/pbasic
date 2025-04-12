@@ -1,5 +1,6 @@
 //! PBasic interpreter library.
 
+pub mod env;
 pub mod lexer;
 pub mod program;
 pub mod repl;
