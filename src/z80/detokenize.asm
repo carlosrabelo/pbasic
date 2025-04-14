@@ -1,190 +1,184 @@
-; detokenize.asm - Detokenizer for PBasic Z80
+; detokenize.asm - Token-to-text conversion for PBasic (Z80)
 ; -----------------------------------------------------------------------
-; Converts tokenized buffer back to printable ASCII text.
-
-; --- Keyword strings for detokenization ---
-DET_LET:	db	"LET ", 0
-DET_GOTO:	db	"GOTO ", 0
-DET_GOSUB:	db	"GOSUB ", 0
-DET_PRINT:	db	"PRINT ", 0
-DET_IF:		db	"IF ", 0
-DET_INPUT:	db	"INPUT ", 0
-DET_RETURN:	db	"RETURN", 0
-DET_END:	db	"END", 0
-DET_LIST:	db	"LIST", 0
-DET_RUN:	db	"RUN", 0
-DET_NEW:	db	"NEW", 0
-DET_EXIT:	db	"EXIT", 0
-DET_REM:	db	"REM ", 0
-DET_THEN:	db	"THEN ", 0
-DET_FREE:	db	"FREE", 0
-DET_RND:	db	"RND", 0
-DET_ABS:	db	"ABS", 0
-DET_NE:		db	"<>", 0
-DET_LE:		db	"<=", 0
-DET_GE:		db	">=", 0
-
-; --- Keyword pointer table (indexed by token - TK_LET) ---
-DET_KW_TABLE:
-	dw	DET_LET
-	dw	DET_GOTO
-	dw	DET_GOSUB
-	dw	DET_PRINT
-	dw	DET_IF
-	dw	DET_INPUT
-	dw	DET_RETURN
-	dw	DET_END
-	dw	DET_LIST
-	dw	DET_RUN
-	dw	DET_NEW
-	dw	DET_EXIT
-	dw	DET_REM
-	dw	DET_THEN
+; Converts internal token streams back to human-readable text.
+; Used primarily by the LIST command to reconstruct the source code.
+; -----------------------------------------------------------------------
 
 ; -----------------------------------------------------------------------
-; PRINT_TOKENS - Print token stream at HL as text
-; -----------------------------------------------------------------------
-; Input:  HL = pointer to token buffer
-; Output: None
-; Clobbers: A, B, C, D, H, L, (stack)
+; PRINT_TOKENS - Print token stream at HL as text. Advances HL past 0x00.
+; Preserves: AF, BC, DE
 ; -----------------------------------------------------------------------
 PRINT_TOKENS:
-	ld	a, (hl)
-	or	a
-	ret	z			; end of stream
+    push    AF                  ; Save AF
+    push    BC                  ; Save BC
+    push    DE                  ; Save DE
 
-	cp	$80
-	jr	c, PT_ASCII		; < 0x80 → literal ASCII
+PTO_LOOP:
+    ld      A, (HL)             ; Read the current token
+    or      A                   ; Is it 0x00?
+    jr      z, PTO_DONE         ; If so, end of token stream
+    inc     HL                  ; Advance to next byte
 
-	cp	$C0
-	jr	c, PT_MAIN_KW		; 0x80-0xBF → keyword or operator
+    bit     7, A                ; Check bit 7 (is it >= 0x80?)
+    jr      z, PTO_ASCII        ; If bit 7 is 0, it's a literal ASCII character
 
-	cp	$D0
-	jr	c, PT_NUM_STR		; 0xC0-0xCF → number or string
+    cp      0xC0                ; Is it a number literal token?
+    jr      z, PTO_NUM          ; If so, handle number
 
-	; 0xD0-0xFF → variable or invalid
-	cp	$EA
-	ret	nc			; >= 0xEA, ignore
+    cp      0xC1                ; Is it a string literal token?
+    jr      z, PTO_STR          ; If so, handle string
 
-	; Variable token (0xD0-0xE9)
-	sub	$D0
-	add	a, 'A'
-	call	OUTCHAR
-	inc	hl
-	jr	PRINT_TOKENS
+    cp      0xD0                ; Is it < 0xD0? (meaning it's a keyword or operator)
+    jr      c, PTO_KW           ; If so, handle keyword
+    cp      0xEA                ; Is it >= 0xEA? (invalid token range)
+    jr      nc, PTO_LOOP        ; If invalid, just skip it and loop
 
-PT_ASCII:
-	call	OUTCHAR
-	inc	hl
-	jr	PRINT_TOKENS
+    ; If we got here, it's a variable token (0xD0-0xE9)
+    sub     0xD0                ; Subtract base to get 0-25
+    add     A, 'A'              ; Add ASCII 'A' to get 'A'-'Z'
+    call    OUTCHAR             ; Print the variable letter
+    jr      PTO_LOOP            ; Loop for next token
 
-PT_MAIN_KW:
-	cp	$A0
-	jr	c, PT_KW_TABLE		; 0x80-0x9F → main keyword
+PTO_ASCII:
+    call    OUTCHAR             ; Print the ASCII character
+    jr      PTO_LOOP            ; Loop for next token
 
-	; 0xA0-0xBF: FREE, RND, ABS, or operators
-	cp	$B0
-	jr	c, PT_AUX_KW		; 0xA0-0xAF → FREE/RND/ABS
+PTO_KW:
+    push    HL                  ; Save token pointer
+    call    PRINT_KEYWORD       ; Print the keyword string corresponding to the token in A
+    pop     HL                  ; Restore token pointer
+    jr      PTO_LOOP            ; Loop for next token
 
-	; 0xB0-0xBF: comparison operators
-PT_OP:
-	cp	TK_NE
-	jr	z, PT_NE
-	cp	TK_LE
-	jr	z, PT_LE
-	cp	TK_GE
-	jr	z, PT_GE
-	; invalid, skip
-	inc	hl
-	jr	PRINT_TOKENS
+PTO_NUM:
+    ld      E, (HL)             ; Load low byte of number
+    inc     HL
+    ld      D, (HL)             ; Load high byte of number
+    inc     HL
+    push    HL                  ; Save token pointer
+    ld      H, D                ; Move number into HL for printing
+    ld      L, E
+    call    PRINT_NUMBER        ; Print the number
+    pop     HL                  ; Restore token pointer
+    jr      PTO_LOOP            ; Loop for next token
 
-PT_NE:	ld	de, DET_NE	; jr PT_PSTR
-PT_LE:	ld	de, DET_LE	; jr PT_PSTR
-PT_GE:	ld	de, DET_GE	; jr PT_PSTR
+PTO_STR:
+    ld      A, '"'              ; Print opening quote
+    call    OUTCHAR
+PTO_SL:
+    ld      A, (HL)             ; Read character from string body
+    inc     HL
+    cp      0xC1                ; Is it the closing string marker?
+    jr      z, PTO_SE           ; If so, end of string
+    or      A                   ; Is it 0x00? (malformed string)
+    jr      z, PTO_DONE         ; If so, abort securely
+    call    OUTCHAR             ; Print the character
+    jr      PTO_SL              ; Loop inside string
+PTO_SE:
+    ld      A, '"'              ; Print closing quote
+    call    OUTCHAR
+    jr      PTO_LOOP            ; Loop for next token
 
-PT_PSTR:
-	call	PRINT_STR
-	inc	hl
-	jr	PRINT_TOKENS
-
-PT_AUX_KW:
-	cp	TK_FREE
-	jr	z, PT_FREE
-	cp	TK_RND
-	jr	z, PT_RND
-	cp	TK_ABS
-	jr	z, PT_ABS
-	inc	hl
-	jr	PRINT_TOKENS
-
-PT_FREE: ld	de, DET_FREE	; jr PT_PSTR
-PT_RND:	 ld	de, DET_RND	; jr PT_PSTR
-PT_ABS:	 ld	de, DET_ABS	; jr PT_PSTR
-
-PT_KW_TABLE:
-	; Token 0x80-0x8D, index = (token - TK_LET) * 2
-	sub	TK_LET
-	add	a, a			; *2 for word table
-	ld	de, DET_KW_TABLE
-	add	a, e
-	ld	e, a
-	ld	a, 0
-	adc	a, d
-	ld	d, a			; DE = &DET_KW_TABLE[index]
-
-	ld	a, (de)			; low byte of string addr
-	ld	c, a
-	inc	de
-	ld	a, (de)			; high byte of string addr
-	ld	b, a
-	ld	d, b
-	ld	e, c
-
-	call	PRINT_STR
-	inc	hl
-	jr	PRINT_TOKENS
+PTO_DONE:
+    pop     DE                  ; Restore registers
+    pop     BC
+    pop     AF
+    ret                         ; Return
 
 ; -----------------------------------------------------------------------
-PT_NUM_STR:
-	cp	TK_NUM
-	jr	z, PT_NUM
+; PRINT_KEYWORD - Print text for keyword token in A.
+; Compares token against all known keywords and prints the mapped string.
+; Preserves: AF, BC, DE, HL
+; -----------------------------------------------------------------------
+PRINT_KEYWORD:
+    push    AF                  ; Save AF
+    push    BC                  ; Save BC
+    push    DE                  ; Save DE
+    push    HL                  ; Save HL
 
-	; TK_STR (0xC1)
-	inc	hl			; skip token byte
-	ld	a, '"'
-	call	OUTCHAR
+    ; Check if token is in the 0x80 - 0x8D range
+    cp      0x80
+    jr      c, PKW_CHECK_A      ; If < 0x80, check A0 range
+    cp      0x8E
+    jr      nc, PKW_CHECK_A     ; If >= 0x8E, check A0 range
 
-PT_STR_LOOP:
-	ld	a, (hl)
-	or	a
-	jr	z, PT_DONE		; end of buffer, abort
-	cp	TK_STR
-	jr	z, PT_STR_END
+    ; --- O(1) Lookup Table for 0x80-0x8D ---
+    sub     0x80                ; A = 0 to 13
+    add     A, A                ; A = A * 2 (each pointer is 2 bytes)
+    ld      C, A
+    ld      B, 0                ; BC = offset
 
-	call	OUTCHAR
-	inc	hl
-	jr	PT_STR_LOOP
+    ld      HL, PKW_TABLE       ; Base address of lookup table
+    add     HL, BC              ; HL = table + offset
 
-PT_STR_END:
-	ld	a, '"'
-	call	OUTCHAR
-	inc	hl
-	jp	PRINT_TOKENS
+    ld      E, (HL)             ; Read low byte of string pointer
+    inc     HL
+    ld      D, (HL)             ; Read high byte of string pointer
+    ex      DE, HL              ; HL = string pointer
 
-PT_NUM:
-	inc	hl			; skip token byte
-	ld	a, (hl)
-	ld	c, a
-	inc	hl
-	ld	a, (hl)
-	ld	b, a			; BC = 16-bit value
-	inc	hl
-	push	hl			; save token buf ptr
-	ld	l, c
-	ld	h, b
-	call	PRINT_NUMBER
-	pop	hl
-	jp	PRINT_TOKENS
+    call    PRINT_STR           ; Print the selected keyword string
+    jr      PKW_DONE
 
-PT_DONE:
-	ret
+PKW_CHECK_A:
+    cp      0xA0
+    jr      z, PKW_E            ; FREE
+    cp      0xA1
+    jr      z, PKW_F            ; RND
+    cp      0xA2
+    jr      z, PKW_G            ; ABS
+
+    cp      0xB0
+    jr      z, PKW_H            ; <>
+    cp      0xB1
+    jr      z, PKW_I            ; <=
+    cp      0xB2
+    jr      z, PKW_J            ; >=
+
+    jr      PKW_DONE            ; If unknown, do nothing
+
+PKW_E:
+    ld      HL, PKWS_FREE
+    jr      PKW_PS
+PKW_F:
+    ld      HL, PKWS_RND
+    jr      PKW_PS
+PKW_G:
+    ld      HL, PKWS_ABS
+    jr      PKW_PS
+PKW_H:
+    ld      HL, PKWS_NE
+    jr      PKW_PS
+PKW_I:
+    ld      HL, PKWS_LE
+    jr      PKW_PS
+PKW_J:
+    ld      HL, PKWS_GE
+    jr      PKW_PS
+
+PKW_PS:
+    call    PRINT_STR           ; Print the selected keyword string
+
+PKW_DONE:
+    pop     HL                  ; Restore registers
+    pop     DE
+    pop     BC
+    pop     AF
+    ret                         ; Return
+
+; -----------------------------------------------------------------------
+; PKW_TABLE - O(1) Lookup table for keyword strings (Tokens 0x80-0x8D)
+; -----------------------------------------------------------------------
+PKW_TABLE:
+    dw      PKWS_LET            ; 0x80
+    dw      PKWS_GOTO           ; 0x81
+    dw      PKWS_GOSUB          ; 0x82
+    dw      PKWS_PRINT          ; 0x83
+    dw      PKWS_IF             ; 0x84
+    dw      PKWS_INPUT          ; 0x85
+    dw      PKWS_RETURN         ; 0x86
+    dw      PKWS_END            ; 0x87
+    dw      PKWS_LIST           ; 0x88
+    dw      PKWS_RUN            ; 0x89
+    dw      PKWS_NEW            ; 0x8A
+    dw      PKWS_EXIT           ; 0x8B
+    dw      PKWS_REM            ; 0x8C
+    dw      PKWS_THEN           ; 0x8D

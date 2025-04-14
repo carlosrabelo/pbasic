@@ -1,127 +1,195 @@
-; math.asm - Core mathematical primitives (Z80)
+; math.asm - Core mathematical primitives for PBasic (Z80)
 ; -----------------------------------------------------------------------
-; Implements 16-bit integer multiplication, division, and modulo.
-; Pure functions independent of the parser.
+; Implements 16-bit integer multiplication, division, modulo, and pseudo-random
+; number generation. These are pure functions independent of the parser.
 ; -----------------------------------------------------------------------
 
 ; -----------------------------------------------------------------------
-; MUL16 - Unsigned 16-bit multiply (shift-and-add).
-; -----------------------------------------------------------------------
+; MUL16 - Unsigned 16-bit multiply.
 ; Input:  HL = op1, DE = op2
-; Output: HL = (op1 * op2) & 0xFFFF
-; Clobbers: A, B, C, D, E
+; Output: HL = op1 * op2 (lower 16 bits)
+; Clobbers: AF, BC, DE
 ; -----------------------------------------------------------------------
 MUL16:
-	ld	b, h
-	ld	c, l			; BC = op1 (multiplicand)
-	ld	hl, 0			; HL = accumulator = 0
-	ld	a, 16			; 16 bits to process
+    ld      A, H                ; Check if both high bytes are 0
+    or      D
+    jr      nz, MUL16_16BIT     ; If not, use 16-bit math
 
+    ; --- Fast-path: 8-bit * 8-bit ---
+    ld      B, 0
+    ld      C, L                ; BC = op1 (low byte only)
+    ld      HL, 0               ; Accumulator
+    ld      A, 8                ; 8 iterations
+MUL16_LOOP_8:
+    add     HL, HL              ; Shift result left
+    rl      E                   ; Shift op2 left, MSB into carry
+    jr      nc, MUL16_SKIP_8
+    add     HL, BC              ; Add op1 if carry
+MUL16_SKIP_8:
+    dec     A
+    jr      nz, MUL16_LOOP_8
+    ret
+
+MUL16_16BIT:
+    ld      B, H                ; Save op1 in BC
+    ld      C, L
+    ld      HL, 0               ; Initialize accumulator (result) to 0
+    ld      A, 16               ; Loop 16 times
 MUL16_LOOP:
-	srl	d			; shift multiplier right into carry
-	rr	e			; bit 0 → carry
-	jr	nc, MUL16_SKIP
-	add	hl, bc			; if bit was 1, add multiplicand
-
+    add     HL, HL              ; Shift result left by 1
+    rl      E                   ; Shift op2 (DE) left, MSB goes into Carry
+    rl      D
+    jr      nc, MUL16_SKIP      ; If Carry is 0, don't add op1
+    add     HL, BC              ; If Carry is 1, add op1 (BC) to result
 MUL16_SKIP:
-	sla	c			; shift multiplicand left
-	rl	b
-	dec	a
-	jr	nz, MUL16_LOOP
-	ret
+    dec     A                   ; Decrement loop counter
+    jr      nz, MUL16_LOOP      ; Repeat until all 16 bits are processed
+    ret                         ; Return result in HL
 
 ; -----------------------------------------------------------------------
-; DIVMOD16 - Unsigned 16-bit division and modulo (restoring division).
-; -----------------------------------------------------------------------
+; DIV16_AUX - Shared 16-bit division helper
 ; Input:  HL = dividend, DE = divisor
-; Output: HL = quotient, DE = remainder
-;         If divisor = 0: HL = 0xFFFF, DE = dividend
-; Clobbers: A, B, C
+; Output: HL = quotient, A = remainder high, C = remainder low
+; Clobbers: AF, BC, DE
 ; -----------------------------------------------------------------------
-DIVMOD16:
-	ld	a, d
-	or	e
-	jr	z, DIVMOD16_ZERO
-
-	push	de
-	pop	bc			; BC = divisor
-
-	ld	de, 0			; DE = remainder = 0
-	ld	a, 16			; 16 bits to process
-
-DIVMOD16_LOOP:
-	add	hl, hl			; shift dividend left, MSB → carry
-	rl	e			; shift carry into remainder
-	rl	d
-
-	push	hl			; save shifted dividend
-	or	a			; clear carry for sbc
-	ld	h, d
-	ld	l, e			; HL = copy of trial remainder
-	sbc	hl, bc			; HL = trial remainder - divisor
-	jr	c, DM_SKIP
-
-	ld	d, h
-	ld	e, l			; DE = new remainder
-	pop	hl			; HL = shifted dividend
-	inc	hl			; set quotient bit
-	jr	DM_NEXT
-
-DM_SKIP:
-	pop	hl			; HL = shifted dividend (DE = trial remainder)
-
-DM_NEXT:
-	dec	a
-	jr	nz, DIVMOD16_LOOP
-	ret
-
-DIVMOD16_ZERO:
-	ex	de, hl			; DE = dividend, HL = divisor (0)
-	ld	hl, $FFFF		; HL = 0xFFFF on div-by-zero
-	ret
+DIV16_AUX:
+    ld      A, H                ; Save dividend in A (high) and C (low)
+    ld      C, L
+    ld      HL, 0               ; Initialize remainder to 0
+    ld      B, 16               ; Loop 16 times
+DIV16_AUX_LOOP:
+    sla     C                   ; Shift dividend left, MSB to Carry
+    rla
+    adc     HL, HL              ; Shift remainder left, pull in Carry
+    push    AF                  ; Save A (dividend high byte)
+    xor     A                   ; Clear Carry
+    sbc     HL, DE              ; Subtract divisor from remainder
+    jr      nc, DIV16_AUX_SUB   ; If no borrow, subtraction successful
+    add     HL, DE              ; If borrow, restore remainder
+    pop     AF                  ; Restore A
+    djnz    DIV16_AUX_LOOP      ; Loop (quotient bit is 0)
+    ld      H, A                ; Move quotient from AC to HL
+    ld      L, C
+    ret
+DIV16_AUX_SUB:
+    pop     AF                  ; Restore A
+    inc     C                   ; Set lowest bit of quotient to 1
+    djnz    DIV16_AUX_LOOP      ; Loop
+    ld      H, A                ; Move quotient from AC to HL
+    ld      L, C
+    ret
 
 ; -----------------------------------------------------------------------
 ; DIV16 - Unsigned 16-bit divide.
-; -----------------------------------------------------------------------
 ; Input:  HL = dividend, DE = divisor
-; Output: HL = quotient, or 0xFFFF if division by zero
-; Clobbers: A, B, C, D, E
+; Output: HL = quotient
+; Clobbers: AF, BC, DE.  Returns 65535 (0xFFFF) on div-by-zero.
 ; -----------------------------------------------------------------------
 DIV16:
-	call	DIVMOD16
-	ret
+    ld      A, D                ; Check for division by zero
+    or      E
+    jr      nz, DIV16_OK        ; If divisor is not 0, proceed
+    ld      HL, 0xFFFF          ; If 0, return 65535
+    ret
+DIV16_OK:
+    ld      A, H                ; Check if both high bytes are 0
+    or      D
+    jr      nz, DIV16_16BIT     ; If not, use 16-bit math
+
+    ; --- Fast-path: 8-bit / 8-bit ---
+    ld      C, E                ; C = divisor
+    ld      H, 0                ; H = remainder
+    ld      B, 8                ; 8 iterations
+DIV16_LOOP_8:
+    sla     L                   ; Shift dividend
+    rl      H                   ; Shift remainder
+    ld      A, H
+    cp      C                   ; Compare remainder with divisor
+    jr      c, DIV16_SKIP_8
+    sub     C                   ; Subtract divisor (carry already set)
+    ld      H, A                ; Store result
+    inc     L                   ; Set lowest bit of quotient
+DIV16_SKIP_8:
+    djnz    DIV16_LOOP_8
+    ld      H, 0                ; L = quotient, set H to 0
+    ret
+
+DIV16_16BIT:
+    call    DIV16_AUX           ; HL = quotient, C = remainder
+    ret
 
 ; -----------------------------------------------------------------------
 ; MOD16 - Unsigned 16-bit modulo.
-; -----------------------------------------------------------------------
 ; Input:  HL = dividend, DE = divisor
-; Output: HL = remainder, or HL = dividend if division by zero
-; Clobbers: A, B, C, D, E
+; Output: HL = remainder
+; Clobbers: AF, BC, DE. Returns dividend if div-by-zero.
 ; -----------------------------------------------------------------------
 MOD16:
-	call	DIVMOD16
-	ex	de, hl			; HL = remainder
-	ret
+    ld      A, D                ; Check for division by zero
+    or      E
+    ret     z                   ; If divisor is 0, return dividend as remainder
+
+    ld      A, H                ; Check if both high bytes are 0
+    or      D
+    jr      nz, MOD16_16BIT     ; If not, use 16-bit math
+
+    ; --- Fast-path: 8-bit % 8-bit ---
+    ld      C, E                ; C = divisor
+    ld      H, 0                ; H = remainder
+    ld      B, 8                ; 8 iterations
+MOD16_LOOP_8:
+    sla     L                   ; Shift dividend
+    rl      H                   ; Shift remainder
+    ld      A, H
+    cp      C                   ; Compare remainder with divisor
+    jr      c, MOD16_SKIP_8
+    sub     C                   ; Subtract divisor (carry already set)
+    ld      H, A                ; Store result
+    inc     L                   ; Set lowest bit of quotient
+MOD16_SKIP_8:
+    djnz    MOD16_LOOP_8
+    ld      L, H                ; H = remainder, move to L
+    ld      H, 0
+    ret
+
+MOD16_16BIT:
+    ld      A, H                ; Save dividend in A (high) and C (low)
+    ld      C, L
+    ld      HL, 0               ; Initialize remainder to 0
+    ld      B, 16               ; Loop 16 times
+MOD16_AUX_LOOP:
+    sla     C                   ; Shift dividend left, MSB to Carry
+    rla
+    adc     HL, HL              ; Shift remainder left, pull in Carry
+    push    AF                  ; Save A
+    xor     A                   ; Clear Carry
+    sbc     HL, DE              ; Subtract divisor from remainder
+    jr      nc, MOD16_AUX_SUB   ; If no borrow, subtraction successful
+    add     HL, DE              ; If borrow, restore remainder
+    pop     AF                  ; Restore A
+    djnz    MOD16_AUX_LOOP      ; Loop
+    ret                         ; Remainder is in HL
+MOD16_AUX_SUB:
+    pop     AF                  ; Restore A
+    djnz    MOD16_AUX_LOOP      ; Loop (no need to inc C for modulo)
+    ret                         ; Remainder is in HL
 
 ; -----------------------------------------------------------------------
 ; RAND16 - Pseudo-random number generator (16-bit LCG).
-; -----------------------------------------------------------------------
-; Algorithm: seed = (seed * 5 + 2971) & 0xFFFF
-; Input:  None (uses MEM_RAND_SEED)
-; Output: HL = new random value (16-bit)
-; Clobbers: A, D, E
+; Algorithm: seed = seed * 5 + 2971
+; Output: HL = new random number
+; Clobbers: AF, BC, DE
 ; -----------------------------------------------------------------------
 RAND16:
-	ld	hl, (MEM_RAND_SEED)	; HL = current seed
-	ld	d, h
-	ld	e, l			; DE = seed
-
-	add	hl, hl			; HL = seed * 2
-	add	hl, hl			; HL = seed * 4
-	add	hl, de			; HL = seed * 5
-
-	ld	de, 2971
-	add	hl, de			; HL = seed * 5 + 2971 (auto wrap)
-
-	ld	(MEM_RAND_SEED), hl	; store new seed
-	ret
+    ld      HL, (MEM_RAND_SEED)
+    ; Multiply HL by 5
+    ld      B, H
+    ld      C, L
+    add     HL, HL              ; * 2
+    add     HL, HL              ; * 4
+    add     HL, BC              ; * 5
+    ; Add prime constant 2971
+    ld      DE, 2971
+    add     HL, DE
+    ld      (MEM_RAND_SEED), HL ; Save new seed
+    ret

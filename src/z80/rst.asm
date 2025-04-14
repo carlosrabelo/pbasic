@@ -1,49 +1,40 @@
-; rst.asm - RST vector table for PBasic Z80
+; rst.asm - RST vector table and system entry point (Z80)
 ; -----------------------------------------------------------------------
-; RST vectors provide single-byte call instructions to fixed addresses.
-; Each slot is 8 bytes. Execution starts at $0000 after reset.
+; Defines Z80 restart vectors from address 0x0000. Each RST slot is 8
+; bytes. RST 0 jumps to the main START routine; all others are unused
+; and simply return.
 ;
-; RST 0 ($C7) - System reset / restart
-; RST 1 ($CF) - OUTCHAR: output character in A to TTY
-; RST 2 ($D7) - INCHAR: read character from TTY into A (blocking)
-; RST 3-7    - Reserved (ret)
+; Layout:
+;   0x0000   RST 0 (C7)   → jp START
+;   0x0008   RST 1 (CF)   → ret
+;   0x0010   RST 2 (D7)   → ret
+;   0x0018   RST 3 (DF)   → ret
+;   0x0020   RST 4 (E7)   → ret
+;   0x0028   RST 5 (EF)   → ret
+;   0x0030   RST 6 (F7)   → ret
+;   0x0038   RST 7 (FF)   → ret (also IM 1 interrupt)
+;   0x0066   NMI          → retn
+;   0x0068-0x00FF Padding
+;   0x0100   Main code begins
 ; -----------------------------------------------------------------------
 
-	org	$0000
+    org     0x0000              ; Set origin to 0x0000 (Z80 reset vector)
 
-; RST 0 — Reset / Entry point
-	jp	START
-	ds	5
-
-; RST 1 — OUTCHAR: output character in A to TTY
-	out	(0), a
-	ret
-	ds	5
-
-; RST 2 — INCHAR: read character from TTY into A (blocking)
-; Polls STATUS ($01) bit 0 (RX ready), then reads DATA ($00).
-RST_INCHAR:
-	in	a, (1)
-	rra
-	jr	nc, RST_INCHAR
-	in	a, (0)
-	ret
-
-; RST 3 — Reserved
-	ret
-	ds	7
-
-; RST 4 — Reserved
-	ret
-	ds	7
-
-; RST 5 — Reserved
-	ret
-	ds	7
-
-; RST 6 — Reserved
-	ret
-	ds	7
-
-; RST 7 — Reserved / IM 1 interrupt
-	ret
+    jp      START               ; RST 0 — System reset, jump to main entry
+    ds      0x0008 - $          ; Pad to RST 08H slot
+    ret                         ; RST 08H
+    ds      0x0010 - $
+    ret                         ; RST 10H
+    ds      0x0018 - $
+    ret                         ; RST 18H
+    ds      0x0020 - $
+    ret                         ; RST 20H
+    ds      0x0028 - $
+    ret                         ; RST 28H
+    ds      0x0030 - $
+    ret                         ; RST 30H
+    ds      0x0038 - $
+    ret                         ; RST 38H — also IM 1 mode interrupt vector
+    ds      0x0066 - $
+    retn                        ; Non-Maskable Interrupt vector
+    ds      0x0100 - $          ; Pad to 0x0100 for main code area

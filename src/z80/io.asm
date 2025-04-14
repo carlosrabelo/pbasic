@@ -1,174 +1,232 @@
-; io.asm - Base I/O routines for PBasic Z80
+; io.asm - I/O base routines for PBasic (Z80)
 ; -----------------------------------------------------------------------
-; Provides low-level TTY communication via port-mapped I/O at Port 0x00.
+; Handles all interaction with the hardware environment, specifically the
+; Teletype (TTY) interface for character input/output.
 ; -----------------------------------------------------------------------
 
+    include 'defs.inc'
+
 ; -----------------------------------------------------------------------
-; INCHAR - Read a single character from the Virtual TTY
-; -----------------------------------------------------------------------
-; Polls STATUS port ($01) until RX ready (bit 0), then reads DATA ($00).
-; Blocks until a character is available.
-;
-; Input:  None
-; Output: A = ASCII value of the character read
-; Clobbers: None
+; INCHAR - Read one character from TTY (blocking)
+; Returns: A = character
+; Preserves: F, BC, DE, HL
 ; -----------------------------------------------------------------------
 INCHAR:
-	in	a, (1)			; read STATUS port
-	and	$01			; check RX ready (bit 0)
-	jr	z, INCHAR		; spin if no data
-	in	a, (0)			; read DATA port
-	ret
+    in      A, (TTY_STATUS_PORT) ; Read TTY status register
+    rrca                        ; Bit 0 (RX ready) into Carry flag
+    jr      nc, INCHAR          ; If not ready, keep polling
+    in      A, (TTY_DATA_PORT)  ; Read the received byte from DATA port
+    ret                         ; Return to caller
 
 ; -----------------------------------------------------------------------
-; OUTCHAR - Write a single character to the Virtual TTY
+; CHECK_BREAK - Check if a break key (Ctrl+C, ESC, q, Q) is pressed (non-blocking)
+; Returns: A = 1 if break requested, 0 otherwise
+; Preserves: BC, DE, HL
+; Clobbers: AF
 ; -----------------------------------------------------------------------
-; Sends the character to the DATA port ($00) for host stdout output.
-;
-; Input:  A = ASCII character to print
-; Output: None
+CHECK_BREAK:
+    in      A, (TTY_STATUS_PORT) ; Read TTY status register
+    rrca                        ; Bit 0 (RX ready) into Carry flag
+    jr      nc, CB_NONE         ; If no data ready, return 0 (no break)
+
+    in      A, (TTY_DATA_PORT)  ; Read the received byte from DATA port
+
+    cp      3                   ; Is it Ctrl+C (ASCII 3)?
+    jr      z, CB_YES           ; If so, trigger execution abort
+    cp      27                  ; Is it Escape (ASCII 27)?
+    jr      z, CB_YES           ; If so, trigger execution abort
+    cp      'q'                 ; Is it lowercase 'q'?
+    jr      z, CB_YES           ; If so, trigger execution abort
+    cp      'Q'                 ; Is it uppercase 'Q'?
+    jr      z, CB_YES           ; If so, trigger execution abort
+
+CB_NONE:
+    xor     A                   ; A = 0 (no break requested)
+    ret                         ; Return
+
+CB_YES:
+    ld      A, 1                ; A = 1 (break requested)
+    ret                         ; Return
+
+; -----------------------------------------------------------------------
+; OUTCHAR - Write one character to TTY
+; Input: A = character
+; Preserves: AF, BC, DE, HL
 ; -----------------------------------------------------------------------
 OUTCHAR:
-	out	(0), a
-	ret
+    out     (TTY_DATA_PORT), A  ; Output the byte in register A to the hardware TTY DATA port
+    ret                         ; Return to caller
 
 ; -----------------------------------------------------------------------
-; PRINT_STR - Print a null-terminated string
-; -----------------------------------------------------------------------
-; Input:  HL = address of string
-; Output: None
-; Clobbers: A, HL
-; -----------------------------------------------------------------------
-PRINT_STR:
-	ld	a, (hl)
-	or	a
-	ret	z
-	call	OUTCHAR
-	inc	hl
-	jr	PRINT_STR
-
-; -----------------------------------------------------------------------
-; PRINT_CRLF - Print a CR+LF newline sequence
+; PRINT_CRLF - Print CR+LF
+; Preserves: AF, BC, DE, HL
 ; -----------------------------------------------------------------------
 PRINT_CRLF:
-	ld	a, 13
-	call	OUTCHAR
-	ld	a, 10
-	jp	OUTCHAR
+    push    AF                  ; Save AF on the stack
+    ld      A, 13               ; Load ASCII 13 (Carriage Return)
+    call    OUTCHAR             ; Print it
+    ld      A, 10               ; Load ASCII 10 (Line Feed)
+    call    OUTCHAR             ; Print it
+    pop     AF                  ; Restore AF
+    ret                         ; Return to caller
 
 ; -----------------------------------------------------------------------
-; PRINT_NUMBER - Print HL as unsigned decimal
+; PRINT_STR - Print null-terminated string
+; Input: HL = pointer to string
+; Preserves: AF, BC, DE, HL
 ; -----------------------------------------------------------------------
-; Input:  HL = 16-bit value to print
-; Output: None
-; Clobbers: A, BC, flags
+PRINT_STR:
+    push    AF                  ; Save AF
+    push    HL                  ; Save string pointer
+PRINT_STR_LOOP:
+    ld      A, (HL)             ; Read character from string
+    or      A                   ; Check if it is the null terminator (0)
+    jr      z, PRINT_STR_DONE   ; If zero, we are done
+    call    OUTCHAR             ; Otherwise, print the character
+    inc     HL                  ; Advance pointer to next character
+    jr      PRINT_STR_LOOP      ; Loop back
+PRINT_STR_DONE:
+    pop     HL                  ; Restore pointer
+    pop     AF                  ; Restore AF
+    ret                         ; Return
+
+; -----------------------------------------------------------------------
+; PRINT_NUMBER - Print 16-bit unsigned number in decimal
+; Input: HL = number (0-65535)
+; Preserves: AF, BC, DE, HL
 ; -----------------------------------------------------------------------
 PRINT_NUMBER:
-	ld	a, h
-	or	l
-	jr	nz, PN_NZ
-	ld	a, '0'
-	jp	OUTCHAR
+    push    AF                  ; Save all working registers
+    push    BC
+    push    DE
+    push    HL
 
-PN_NZ:
-	ld	a, 1
-	ld	(MEM_SCRATCH), a	; suppress leading zeros flag
+    ld      A, H                ; Check if HL is exactly 0
+    or      L
+    jr      nz, PNUM_NOTZERO    ; If not zero, proceed with division
+    ld      A, '0'              ; If zero, just print '0'
+    call    OUTCHAR
+    jr      PNUM_DONE
 
-	ld	bc, 10000
-	call	PD_DIGIT
-	ld	bc, 1000
-	call	PD_DIGIT
-	ld	bc, 100
-	call	PD_DIGIT
-	ld	bc, 10
-	call	PD_DIGIT
+PNUM_NOTZERO:
+    ld      B, 0                ; B will count the number of digits pushed to stack
 
-	ld	a, l
-	add	a, '0'
-	call	OUTCHAR
-	ret
+PNUM_LOOP:
+    ld      A, H                ; Check if HL has become 0 after divisions
+    or      L
+    jr      z, PNUM_PRINT       ; If zero, we have extracted all digits
+    call    DIV10               ; Divide HL by 10 (HL = quotient, A = remainder)
+    push    AF                  ; Push the remainder (digit) onto the stack
+    inc     B                   ; Increment digit counter
+    jr      PNUM_LOOP           ; Repeat until quotient is 0
 
-; Extract one decimal digit from HL using power of 10 in BC
-PD_DIGIT:
-	ld	a, '0'
-PD_LOOP:
-	or	a			; clear carry
-	sbc	hl, bc
-	jr	c, PD_DONE
-	inc	a
-	jr	PD_LOOP
+PNUM_PRINT:
+    pop     AF                  ; Pop a digit from the stack
+    add     A, '0'              ; Convert integer 0-9 to ASCII '0'-'9'
+    call    OUTCHAR             ; Print the character
+    djnz    PNUM_PRINT          ; Decrement B, loop if not zero (print all digits)
 
-PD_DONE:
-	add	hl, bc			; restore HL
-
-	push	af
-	ld	a, (MEM_SCRATCH)
-	or	a
-	jr	z, PD_EMIT		; already emitting
-	pop	af
-	cp	'0'
-	ret	z			; skip leading zero
-	push	af
-	xor	a
-	ld	(MEM_SCRATCH), a
-
-PD_EMIT:
-	pop	af
-	jp	OUTCHAR
+PNUM_DONE:
+    pop     HL                  ; Restore all working registers
+    pop     DE
+    pop     BC
+    pop     AF
+    ret                         ; Return
 
 ; -----------------------------------------------------------------------
-; READ_LINE - Read input from TTY into input buffer
+; DIV10 - Divide HL by 10 (unsigned, repeated subtraction)
+; Input: HL = dividend
+; Output: HL = quotient, A = remainder
+; Preserves: BC, DE
 ; -----------------------------------------------------------------------
-; Reads characters from TTY into MEM_INPUT_BUF, strips trailing newline,
-; converts lowercase to uppercase, and null-terminates.
-;
-; Input:  None
-; Output: None
-; Clobbers: A, B, HL
+DIV10:
+    push    BC                  ; Save BC
+    ld      BC, 0               ; Initialize quotient to 0 in BC
+
+DIV10_LOOP:
+    ld      A, H                ; Check if high byte is zero
+    or      A
+    jr      nz, DIV10_SUB       ; If high byte is not zero, HL is >= 256, so definitely >= 10
+    ld      A, L                ; If high byte is zero, check low byte
+    cp      10                  ; Is L < 10?
+    jr      c, DIV10_DONE       ; If so, division is done
+
+DIV10_SUB:
+    ld      A, L                ; Load low byte
+    sub     10                  ; Subtract 10
+    ld      L, A                ; Save it back
+    ld      A, H                ; Load high byte
+    sbc     A, 0                ; Subtract borrow if any
+    ld      H, A                ; Save it back
+    inc     BC                  ; Increment quotient
+    jr      DIV10_LOOP          ; Repeat subtraction
+
+DIV10_DONE:
+    ld      A, L                ; The remainder is left in L, move it to A
+    ld      L, C                ; Move the quotient from BC to HL
+    ld      H, B
+    pop     BC                  ; Restore original BC
+    ret                         ; Return
+
+; -----------------------------------------------------------------------
+; READ_LINE - Read a line into input buffer
+; Handles backspace (8, 127), CR (13), LF (10)
+; Output: HL = pointer to null-terminated string in input buffer
+; Preserves: AF, BC, DE
 ; -----------------------------------------------------------------------
 READ_LINE:
-	ld	hl, MEM_INPUT_BUF
-	ld	b, 127			; max chars (room for null)
+    push    AF                  ; Save AF
+    push    BC                  ; Save BC
 
-RL_CHAR_LOOP:
-	call	INCHAR			; A = character from TTY
+    ld      HL, MEM_INPUT_BUF   ; Point HL to the start of the input buffer
+    ld      C, 0                ; C tracks the current length of the input
 
-	cp	10			; LF (newline)?
-	jr	z, RL_DONE
+RLINE_LOOP:
+    call    INCHAR              ; Read a character from the TTY (blocks in INCHAR loop)
 
-	cp	13			; CR (carriage return)?
-	jr	z, RL_DONE
+    cp      13                  ; Is it Carriage Return?
+    jr      z, RLINE_DONE       ; If yes, finish reading
+    cp      10                  ; Is it Line Feed?
+    jr      z, RLINE_DONE       ; If yes, finish reading
+    cp      127                 ; Is it Backspace (Delete)?
+    jr      z, RLINE_BS         ; Handle backspace
+    cp      8                   ; Is it Backspace (CTRL-H)?
+    jr      z, RLINE_BS         ; Handle backspace
 
-	ld	(hl), a
-	inc	hl
-	djnz	RL_CHAR_LOOP
+    push    AF                  ; Save the read character
+    ld      A, C                ; Check if buffer is full
+    cp      INPUT_BUF_LEN - 1   ; Leave room for null terminator
+    pop     AF                  ; Restore the character
+    jr      z, RLINE_LOOP       ; If full, ignore character and wait for CR/BS
 
-RL_DONE:
-	ld	(hl), 0			; null-terminate
+    ld      (HL), A             ; Store the character in the buffer
+    call    OUTCHAR             ; Echo the character back to the screen (manual echo)
+    inc     HL                  ; Advance the buffer pointer
+    inc     C                   ; Increment the length counter
+    jr      RLINE_LOOP          ; Loop back for next character
 
-	; Post-process: convert lowercase to uppercase
-	ld	hl, MEM_INPUT_BUF
+RLINE_BS:
+    ld      A, C                ; Check current length
+    or      A                   ; Is it 0?
+    jr      z, RLINE_LOOP       ; If 0, ignore backspace (can't go back further)
 
-RL_UPPER_LOOP:
-	ld	a, (hl)
-	or	a
-	ret	z			; end of string
+    ; Visual backspace echo to erase character on the terminal
+    ld      A, 8                ; Move cursor left
+    call    OUTCHAR
+    ld      A, ' '              ; Overwrite with space
+    call    OUTCHAR
+    ld      A, 8                ; Move cursor left again
+    call    OUTCHAR
 
-	cp	'a'			; < 'a'?
-	jr	c, RL_NEXT
-	cp	'z' + 1			; >= 123?
-	jr	nc, RL_NEXT
+    dec     HL                  ; Move pointer back one position
+    dec     C                   ; Decrement length counter
+    jr      RLINE_LOOP          ; Loop back
 
-	sub	32			; convert to uppercase
-	ld	(hl), a
+RLINE_DONE:
+    call    PRINT_CRLF          ; Print newline to visually advance the terminal
+    ld      (HL), 0             ; Null-terminate the string
+    ld      HL, MEM_INPUT_BUF   ; Return pointer to the start of the buffer
 
-RL_NEXT:
-	inc	hl
-	jr	RL_UPPER_LOOP
-
-; -----------------------------------------------------------------------
-; PRINT_OK - Print "OK" message
-; -----------------------------------------------------------------------
-PRINT_OK:
-	ld	hl, MSG_OK
-	jp	PRINT_STR
+    pop     BC                  ; Restore registers
+    pop     AF
+    ret                         ; Return
