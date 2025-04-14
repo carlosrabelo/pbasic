@@ -49,6 +49,16 @@ pub fn mul16(a: u16, b: u16) -> u16 {
     a.wrapping_mul(b)
 }
 
+/// Safe 16-bit unsigned division returning 0xFFFF on division by zero.
+pub fn div16(a: u16, b: u16) -> u16 {
+    a.checked_div(b).unwrap_or(0xFFFF)
+}
+
+/// Safe 16-bit unsigned modulo returning unchanged dividend on division by zero.
+pub fn mod16(a: u16, b: u16) -> u16 {
+    a.checked_rem(b).unwrap_or(a)
+}
+
 /// Signed 32-bit addition.
 pub fn add32(a: i32, b: i32) -> i32 {
     a.wrapping_add(b)
@@ -115,5 +125,14 @@ mod tests {
         assert_eq!(sub32(100, 200), -100);
         assert_eq!(neg32(15), -15);
         assert_eq!(neg32(-15), 15);
+    }
+
+    #[test]
+    fn test_div16_and_mod16() {
+        assert_eq!(div16(100, 5), 20);
+        assert_eq!(div16(100, 0), 0xFFFF);
+
+        assert_eq!(mod16(100, 30), 10);
+        assert_eq!(mod16(100, 0), 100);
     }
 }
