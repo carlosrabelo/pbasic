@@ -10,12 +10,18 @@
 ; INCHAR - Read one character from TTY (blocking)
 ; Returns: A = character
 ; Preserves: F, BC, DE, HL
+; Note: Use IN A,(C) with BC = port; IN A,(n) forms a 16-bit port from A and n.
 ; -----------------------------------------------------------------------
 INCHAR:
-    in      A, (TTY_STATUS_PORT) ; Read TTY status register
+    push    BC
+    ld      BC, TTY_STATUS_PORT ; BC = $0001 (status register)
+INCHAR_WAIT:
+    in      A, (C)              ; Read TTY status register
     rrca                        ; Bit 0 (RX ready) into Carry flag
-    jr      nc, INCHAR          ; If not ready, keep polling
-    in      A, (TTY_DATA_PORT)  ; Read the received byte from DATA port
+    jr      nc, INCHAR_WAIT     ; If not ready, keep polling
+    ld      BC, TTY_DATA_PORT   ; BC = $0000 (data register)
+    in      A, (C)              ; Read the received byte from DATA port
+    pop     BC
     ret                         ; Return to caller
 
 ; -----------------------------------------------------------------------
@@ -25,11 +31,14 @@ INCHAR:
 ; Clobbers: AF
 ; -----------------------------------------------------------------------
 CHECK_BREAK:
-    in      A, (TTY_STATUS_PORT) ; Read TTY status register
+    push    BC
+    ld      BC, TTY_STATUS_PORT ; BC = $0001 (status register)
+    in      A, (C)              ; Read TTY status register
     rrca                        ; Bit 0 (RX ready) into Carry flag
     jr      nc, CB_NONE         ; If no data ready, return 0 (no break)
 
-    in      A, (TTY_DATA_PORT)  ; Read the received byte from DATA port
+    ld      BC, TTY_DATA_PORT   ; BC = $0000 (data register)
+    in      A, (C)              ; Read the received byte from DATA port
 
     cp      3                   ; Is it Ctrl+C (ASCII 3)?
     jr      z, CB_YES           ; If so, trigger execution abort
@@ -42,19 +51,25 @@ CHECK_BREAK:
 
 CB_NONE:
     xor     A                   ; A = 0 (no break requested)
+    pop     BC
     ret                         ; Return
 
 CB_YES:
     ld      A, 1                ; A = 1 (break requested)
+    pop     BC
     ret                         ; Return
 
 ; -----------------------------------------------------------------------
 ; OUTCHAR - Write one character to TTY
 ; Input: A = character
 ; Preserves: AF, BC, DE, HL
+; Note: Use OUT (C),A with BC = port; OUT (n),A forms a 16-bit port from A and n.
 ; -----------------------------------------------------------------------
 OUTCHAR:
-    out     (TTY_DATA_PORT), A  ; Output the byte in register A to the hardware TTY DATA port
+    push    BC
+    ld      BC, TTY_DATA_PORT   ; BC = $0000 (data register)
+    out     (C), A              ; Output the byte in register A to the TTY DATA port
+    pop     BC
     ret                         ; Return to caller
 
 ; -----------------------------------------------------------------------
