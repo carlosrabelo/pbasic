@@ -136,7 +136,25 @@ impl<'a> Evaluator<'a> {
     }
 
     pub fn eval_expression(&mut self) -> Result<i32, String> {
-        self.eval_term()
+        let mut left = self.eval_term()?;
+
+        while let Some(tok) = self.peek() {
+            match tok.token_type {
+                TokenType::Plus => {
+                    self.advance();
+                    let right = self.eval_term()?;
+                    left = left.wrapping_add(right);
+                }
+                TokenType::Minus => {
+                    self.advance();
+                    let right = self.eval_term()?;
+                    left = left.wrapping_sub(right);
+                }
+                _ => break,
+            }
+        }
+
+        Ok(left)
     }
 }
 
@@ -223,5 +241,35 @@ mod tests {
         let tokens4 = tokenize("2 * 3 * 4");
         let mut eval4 = Evaluator::new(&tokens4, &mut vars, &prog, &mut seed);
         assert_eq!(eval4.eval_term().unwrap(), 24);
+    }
+
+    #[test]
+    fn test_eval_expression() {
+        let mut vars = VariableStore::new();
+        let prog = Program::new();
+        let mut seed = 12345;
+
+        let tokens1 = tokenize("10 + 20");
+        let mut eval1 = Evaluator::new(&tokens1, &mut vars, &prog, &mut seed);
+        assert_eq!(eval1.eval_expression().unwrap(), 30);
+
+        let tokens2 = tokenize("100 - 35");
+        let mut eval2 = Evaluator::new(&tokens2, &mut vars, &prog, &mut seed);
+        assert_eq!(eval2.eval_expression().unwrap(), 65);
+
+        // Operator precedence: 2 + 3 * 4 = 14
+        let tokens3 = tokenize("2 + 3 * 4");
+        let mut eval3 = Evaluator::new(&tokens3, &mut vars, &prog, &mut seed);
+        assert_eq!(eval3.eval_expression().unwrap(), 14);
+
+        // Parentheses override precedence: (2 + 3) * 4 = 20
+        let tokens4 = tokenize("(2 + 3) * 4");
+        let mut eval4 = Evaluator::new(&tokens4, &mut vars, &prog, &mut seed);
+        assert_eq!(eval4.eval_expression().unwrap(), 20);
+
+        // Negative result
+        let tokens5 = tokenize("10 - 50");
+        let mut eval5 = Evaluator::new(&tokens5, &mut vars, &prog, &mut seed);
+        assert_eq!(eval5.eval_expression().unwrap(), -40);
     }
 }
