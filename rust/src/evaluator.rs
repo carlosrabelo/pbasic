@@ -113,8 +113,30 @@ impl<'a> Evaluator<'a> {
         }
     }
 
+    pub fn eval_term(&mut self) -> Result<i32, String> {
+        let mut left = self.eval_factor()?;
+
+        while let Some(tok) = self.peek() {
+            match tok.token_type {
+                TokenType::Asterisk => {
+                    self.advance();
+                    let right = self.eval_factor()?;
+                    left = crate::env::mul16(left as u16, right as u16) as i32;
+                }
+                TokenType::Slash => {
+                    self.advance();
+                    let right = self.eval_factor()?;
+                    left = crate::env::div16(left as u16, right as u16) as i32;
+                }
+                _ => break,
+            }
+        }
+
+        Ok(left)
+    }
+
     pub fn eval_expression(&mut self) -> Result<i32, String> {
-        self.eval_factor()
+        self.eval_term()
     }
 }
 
@@ -176,5 +198,30 @@ mod tests {
         let mut eval4 = Evaluator::new(&tokens4, &mut vars, &prog, &mut seed);
         let rnd_val = eval4.eval_factor().unwrap();
         assert!((1..=10).contains(&rnd_val));
+    }
+
+    #[test]
+    fn test_eval_term() {
+        let mut vars = VariableStore::new();
+        let prog = Program::new();
+        let mut seed = 12345;
+
+        let tokens1 = tokenize("10 * 20");
+        let mut eval1 = Evaluator::new(&tokens1, &mut vars, &prog, &mut seed);
+        assert_eq!(eval1.eval_term().unwrap(), 200);
+
+        let tokens2 = tokenize("100 / 5");
+        let mut eval2 = Evaluator::new(&tokens2, &mut vars, &prog, &mut seed);
+        assert_eq!(eval2.eval_term().unwrap(), 20);
+
+        // Division by zero returns 65535
+        let tokens3 = tokenize("100 / 0");
+        let mut eval3 = Evaluator::new(&tokens3, &mut vars, &prog, &mut seed);
+        assert_eq!(eval3.eval_term().unwrap(), 65535);
+
+        // Chained multiplication
+        let tokens4 = tokenize("2 * 3 * 4");
+        let mut eval4 = Evaluator::new(&tokens4, &mut vars, &prog, &mut seed);
+        assert_eq!(eval4.eval_term().unwrap(), 24);
     }
 }
