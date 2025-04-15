@@ -218,6 +218,9 @@ LINE_STORE:
     push    BC                  ; Save target line number
     push    HL                  ; Save node pointer
     call    NODE_LEN            ; Calculate length of existing node (BC)
+    ld      A, B                ; Check high byte for overflow
+    or      A
+    jp      nz, LS_ERR_OVER     ; Error if length > 255
     ld      A, C                ; Load length
     or      A                   ; Check for 0 length
     jp      z, LS_ERR_OVER      ; Error if 0
@@ -248,7 +251,10 @@ LS_INSERT:
     ld      L, E
     ld      DE, 4               ; DE = 4 (header length)
     add     HL, DE              ; HL = total new node length
-    ld      A, L                ; Save total length (assuming < 256)
+    ld      A, H                ; Check if length > 255
+    or      A
+    jp      nz, LS_ERR_OVER     ; Error: line too long
+    ld      A, L                ; A = total length (< 256)
     pop     HL                  ; Restore insertion point
 
     ld      (MEM_SCRATCH + 2), A ; Save new node length to scratch
@@ -309,7 +315,10 @@ LS_DELETE:
     push    BC                  ; Save line number
     push    HL                  ; Save pointer to node to delete
     call    NODE_LEN            ; Get its length
-    ld      A, C                ; Store length
+    ld      A, B                ; Check high byte for overflow
+    or      A
+    jp      nz, LS_ERR_OVER     ; Error if length > 255
+    ld      A, C                ; A = length
     pop     HL                  ; Restore node pointer
     call    MEM_CLOSE_HOLE      ; Remove it, shifting memory left
     call    FIX_NEXT_SUB        ; Update all previous next-ptrs

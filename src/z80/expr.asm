@@ -227,8 +227,14 @@ EVAL_COND:
     call    EVAL_EXPR           ; Evaluate right side expression
     ex      (SP), HL            ; Swap right side with left side (HL = left, Stack = right)
     pop     DE                  ; DE = right side
+    ld      A, H                ; Bias both values for signed comparison
+    xor     0x80                ; Flip sign bit: map signed to unsigned order
+    ld      H, A
+    ld      A, D
+    xor     0x80
+    ld      D, A
     or      A                   ; Clear carry
-    sbc     HL, DE              ; Compare (Left - Right)
+    sbc     HL, DE              ; Compare (bias preserves ordering)
     push    AF                  ; Save Flags from comparison (Z, C, etc.)
     ld      A, (MEM_SCRATCH)    ; Retrieve operator token
     cp      '='

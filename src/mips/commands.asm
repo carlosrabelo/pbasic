@@ -183,17 +183,21 @@ DP_STR_LOOP:
     lbu     $a0, 0($s0)         # Read character
     addiu   $t1, $zero, 193     # 0xC1 closing marker
     beq     $a0, $t1, DP_STR_END
-    beqz    $a0, DP_STR_ABORT   # Safety exit if null byte reached
+    beqz    $a0, DP_STR_PRINT   # Treat null as printable (don't abort)
 
     jal     OUTCHAR             # Print char
     addiu   $s0, $s0, 1         # Move to next char
+    j       DP_STR_LOOP
+
+DP_STR_PRINT:
+    jal     OUTCHAR             # Print the null byte
+    addiu   $s0, $s0, 1
     j       DP_STR_LOOP
 
 DP_STR_END:
     # Skip the closing 0xC1 marker
     addiu   $s0, $s0, 1
 
-DP_STR_ABORT:
     la      $t0, MEM_TOKEN_PTR
     sw      $s0, 0($t0)         # Save advanced pointer
     j       DP_LOOP
