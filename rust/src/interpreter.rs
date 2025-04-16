@@ -57,7 +57,53 @@ impl Interpreter {
         }
     }
 
-    pub fn exec_print<W: Write>(&mut self, _tokens: &[Token], _writer: &mut W) -> io::Result<()> {
+    pub fn exec_print<W: Write>(&mut self, tokens: &[Token], writer: &mut W) -> io::Result<()> {
+        let mut cursor = 0;
+        let mut trailing_semicolon = false;
+
+        while cursor < tokens.len() {
+            let tok = &tokens[cursor];
+            match &tok.token_type {
+                TokenType::Eol => break,
+                TokenType::Semicolon => {
+                    trailing_semicolon = true;
+                    cursor += 1;
+                }
+                TokenType::Comma => {
+                    write!(writer, "        ")?;
+                    trailing_semicolon = false;
+                    cursor += 1;
+                }
+                TokenType::String(s) => {
+                    write!(writer, "{}", s)?;
+                    trailing_semicolon = false;
+                    cursor += 1;
+                }
+                _ => {
+                    let mut eval = crate::evaluator::Evaluator::new(
+                        &tokens[cursor..],
+                        &mut self.vars,
+                        &self.prog,
+                        &mut self.rand_seed,
+                    );
+                    match eval.eval_expression() {
+                        Ok(val) => {
+                            write!(writer, "{}", val)?;
+                            cursor += eval.cursor;
+                            trailing_semicolon = false;
+                        }
+                        Err(_) => {
+                            writeln!(writer, "?SYNTAX ERROR")?;
+                            return Ok(());
+                        }
+                    }
+                }
+            }
+        }
+
+        if !trailing_semicolon {
+            writeln!(writer)?;
+        }
         Ok(())
     }
 
@@ -98,5 +144,34 @@ mod tests {
         let tokens = tokenize("");
         interp.execute_statement(&tokens, &mut buf).unwrap();
         assert!(buf.is_empty());
+    }
+
+    #[test]
+    fn test_exec_print() {
+        let mut interp = Interpreter::new();
+        let mut buf = Vec::new();
+
+        // String
+        let tokens1 = tokenize("PRINT \"HELLO, WORLD!\"");
+        interp.execute_statement(&tokens1, &mut buf).unwrap();
+        assert_eq!(String::from_utf8(buf.clone()).unwrap(), "HELLO, WORLD!\n");
+
+        // Expression
+        buf.clear();
+        let tokens2 = tokenize("PRINT 10 + 20");
+        interp.execute_statement(&tokens2, &mut buf).unwrap();
+        assert_eq!(String::from_utf8(buf.clone()).unwrap(), "30\n");
+
+        // Semicolon suppression
+        buf.clear();
+        let tokens3 = tokenize("PRINT \"HI \";");
+        interp.execute_statement(&tokens3, &mut buf).unwrap();
+        assert_eq!(String::from_utf8(buf.clone()).unwrap(), "HI ");
+
+        // Comma tab
+        buf.clear();
+        let tokens4 = tokenize("PRINT 1, 2");
+        interp.execute_statement(&tokens4, &mut buf).unwrap();
+        assert_eq!(String::from_utf8(buf).unwrap(), "1        2\n");
     }
 }
