@@ -107,7 +107,42 @@ impl Interpreter {
         Ok(())
     }
 
-    pub fn exec_let<W: Write>(&mut self, _tokens: &[Token], _writer: &mut W) -> io::Result<()> {
+    pub fn exec_let<W: Write>(&mut self, tokens: &[Token], writer: &mut W) -> io::Result<()> {
+        if tokens.is_empty() {
+            writeln!(writer, "?SYNTAX ERROR")?;
+            return Ok(());
+        }
+
+        let var_name = match tokens[0].token_type {
+            TokenType::Variable(c) => c,
+            _ => {
+                writeln!(writer, "?SYNTAX ERROR")?;
+                return Ok(());
+            }
+        };
+
+        if tokens.len() < 2 || tokens[1].token_type != TokenType::Equal {
+            writeln!(writer, "?SYNTAX ERROR")?;
+            return Ok(());
+        }
+
+        let expr_tokens = &tokens[2..];
+        let mut eval = crate::evaluator::Evaluator::new(
+            expr_tokens,
+            &mut self.vars,
+            &self.prog,
+            &mut self.rand_seed,
+        );
+
+        match eval.eval_expression() {
+            Ok(val) => {
+                self.vars.set(var_name, val);
+            }
+            Err(_) => {
+                writeln!(writer, "?SYNTAX ERROR")?;
+            }
+        }
+
         Ok(())
     }
 
@@ -173,5 +208,29 @@ mod tests {
         let tokens4 = tokenize("PRINT 1, 2");
         interp.execute_statement(&tokens4, &mut buf).unwrap();
         assert_eq!(String::from_utf8(buf).unwrap(), "1        2\n");
+    }
+
+    #[test]
+    fn test_exec_let() {
+        let mut interp = Interpreter::new();
+        let mut buf = Vec::new();
+
+        let tokens1 = tokenize("LET A = 42");
+        interp.execute_statement(&tokens1, &mut buf).unwrap();
+        assert_eq!(interp.vars.get('A'), 42);
+
+        let tokens2 = tokenize("LET B = A * 2");
+        interp.execute_statement(&tokens2, &mut buf).unwrap();
+        assert_eq!(interp.vars.get('B'), 84);
+
+        // Implicit LET
+        let tokens3 = tokenize("C = 100");
+        interp.execute_statement(&tokens3, &mut buf).unwrap();
+        assert_eq!(interp.vars.get('C'), 100);
+
+        // Syntax error
+        let tokens4 = tokenize("LET 123");
+        interp.execute_statement(&tokens4, &mut buf).unwrap();
+        assert_eq!(String::from_utf8(buf).unwrap(), "?SYNTAX ERROR\n");
     }
 }
