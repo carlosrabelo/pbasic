@@ -10,7 +10,11 @@ pub struct Interpreter {
     pub prog: Program,
     pub rand_seed: u16,
     pub call_stack: Vec<u16>,
-    pub running: bool,
+    pub current_line_no: u16,
+    pub branch_target: u16,
+    pub branch_taken: bool,
+    pub halted: bool,
+    pub is_running: bool,
     pub exit_requested: bool,
 }
 
@@ -27,7 +31,11 @@ impl Interpreter {
             prog: Program::new(),
             rand_seed: 12345,
             call_stack: Vec::new(),
-            running: false,
+            current_line_no: 0,
+            branch_target: 0,
+            branch_taken: false,
+            halted: false,
+            is_running: false,
             exit_requested: false,
         }
     }
@@ -47,6 +55,8 @@ impl Interpreter {
             TokenType::New => self.exec_new(writer),
             TokenType::Rem => Ok(()),
             TokenType::Free => self.exec_free(writer),
+            TokenType::Run => self.run_program(writer),
+            TokenType::List => self.prog.list(writer),
             TokenType::Variable(_)
                 if tokens.len() > 1 && tokens[1].token_type == TokenType::Equal =>
             {
@@ -156,6 +166,49 @@ impl Interpreter {
     pub fn exec_free<W: Write>(&mut self, writer: &mut W) -> io::Result<()> {
         let free_mem = 16384_usize.saturating_sub(self.prog.byte_size());
         writeln!(writer, "{}", free_mem)
+    }
+
+    pub fn run_program<W: Write>(&mut self, writer: &mut W) -> io::Result<()> {
+        if self.prog.is_empty() {
+            writeln!(writer, "?NO PROGRAM")?;
+            return Ok(());
+        }
+
+        self.call_stack.clear();
+        self.halted = false;
+        self.is_running = true;
+
+        let mut cur = self.prog.first_line().cloned();
+
+        while let Some(line) = cur {
+            if self.halted || self.exit_requested {
+                break;
+            }
+
+            if crate::signals::check_and_reset_interrupted() {
+                self.halted = true;
+                writeln!(writer)?;
+                break;
+            }
+
+            self.current_line_no = line.line_number;
+            self.branch_taken = false;
+
+            self.execute_statement(&line.tokens, writer)?;
+
+            if self.halted || self.exit_requested {
+                break;
+            }
+
+            if self.branch_taken {
+                cur = self.prog.get_line(self.branch_target).cloned();
+            } else {
+                cur = self.prog.next_line(self.current_line_no).cloned();
+            }
+        }
+
+        self.is_running = false;
+        Ok(())
     }
 }
 
@@ -269,5 +322,31 @@ mod tests {
         let tokens2 = tokenize("FREE");
         interp.execute_statement(&tokens2, &mut buf).unwrap();
         assert_eq!(String::from_utf8(buf).unwrap(), "16384\n");
+    }
+
+    #[test]
+    fn test_run_program() {
+        let mut interp = Interpreter::new();
+        let mut buf = Vec::new();
+
+        // Empty program
+        let tokens = tokenize("RUN");
+        interp.execute_statement(&tokens, &mut buf).unwrap();
+        assert_eq!(String::from_utf8(buf.clone()).unwrap(), "?NO PROGRAM\n");
+
+        // Stored program
+        buf.clear();
+        interp.prog.set_line(
+            10,
+            tokenize("PRINT \"LINE 10\""),
+            "PRINT \"LINE 10\"".to_string(),
+        );
+        interp.prog.set_line(
+            20,
+            tokenize("PRINT \"LINE 20\""),
+            "PRINT \"LINE 20\"".to_string(),
+        );
+        interp.execute_statement(&tokens, &mut buf).unwrap();
+        assert_eq!(String::from_utf8(buf).unwrap(), "LINE 10\nLINE 20\n");
     }
 }
