@@ -151,7 +151,7 @@ PKWS_NEW: defb "NEW", 0
 ; Token 0x8B
 PKWS_EXIT: defb "EXIT", 0
 ; Token 0x8C
-PKWS_REM: defb "REM ", 0
+PKWS_REM: defb "REM", 0
 ; Token 0x8D
 PKWS_THEN: defb "THEN ", 0
 ; Token 0xA0

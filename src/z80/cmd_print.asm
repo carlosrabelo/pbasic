@@ -61,7 +61,8 @@ DP_COMMA:
 DP_TAB:
     ld      A, ' '              ; Space character
     call    OUTCHAR             ; Print space
-    djnz    DP_TAB              ; Decrement B, repeat if not zero
+    dec     B
+    jr      nz, DP_TAB          ; Decrement B, repeat if not zero
     pop     BC                  ; Restore BC
     jr      DP_LOOP             ; Continue parsing
 

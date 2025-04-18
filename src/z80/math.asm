@@ -67,14 +67,16 @@ DIV16_AUX_LOOP:
     jr      nc, DIV16_AUX_SUB   ; If no borrow, subtraction successful
     add     HL, DE              ; If borrow, restore remainder
     pop     AF                  ; Restore A
-    djnz    DIV16_AUX_LOOP      ; Loop (quotient bit is 0)
+    dec     B
+    jr      nz, DIV16_AUX_LOOP  ; Loop (quotient bit is 0)
     ld      H, A                ; Move quotient from AC to HL
     ld      L, C
     ret
 DIV16_AUX_SUB:
     pop     AF                  ; Restore A
     inc     C                   ; Set lowest bit of quotient to 1
-    djnz    DIV16_AUX_LOOP      ; Loop
+    dec     B
+    jr      nz, DIV16_AUX_LOOP  ; Loop
     ld      H, A                ; Move quotient from AC to HL
     ld      L, C
     ret
@@ -110,7 +112,8 @@ DIV16_LOOP_8:
     ld      H, A                ; Store result
     inc     L                   ; Set lowest bit of quotient
 DIV16_SKIP_8:
-    djnz    DIV16_LOOP_8
+    dec     B
+    jr      nz, DIV16_LOOP_8
     ld      H, 0                ; L = quotient, set H to 0
     ret
 
@@ -147,7 +150,8 @@ MOD16_LOOP_8:
     ld      H, A                ; Store result
     inc     L                   ; Set lowest bit of quotient
 MOD16_SKIP_8:
-    djnz    MOD16_LOOP_8
+    dec     B
+    jr      nz, MOD16_LOOP_8
     ld      L, H                ; H = remainder, move to L
     ld      H, 0
     ret
@@ -167,11 +171,13 @@ MOD16_AUX_LOOP:
     jr      nc, MOD16_AUX_SUB   ; If no borrow, subtraction successful
     add     HL, DE              ; If borrow, restore remainder
     pop     AF                  ; Restore A
-    djnz    MOD16_AUX_LOOP      ; Loop
+    dec     B
+    jr      nz, MOD16_AUX_LOOP  ; Loop
     ret                         ; Remainder is in HL
 MOD16_AUX_SUB:
     pop     AF                  ; Restore A
-    djnz    MOD16_AUX_LOOP      ; Loop (no need to inc C for modulo)
+    dec     B
+    jr      nz, MOD16_AUX_LOOP  ; Loop (no need to inc C for modulo)
     ret                         ; Remainder is in HL
 
 ; -----------------------------------------------------------------------

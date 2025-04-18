@@ -39,9 +39,9 @@ TOK_LOOP:
     cp      '"'                 ; Is it a quote (start of string literal)?
     jr      z, TOK_STRING       ; If so, handle string tokenization
 
-    cp      '0'                 ; Is it a digit ('0'-'9')?
+    cp      48                  ; Is it a digit ('0'-'9')?
     jr      c, TOK_NOTNUM       ; If less than '0', it's not a number
-    cp      '9' + 1
+    cp      58
     jr      nc, TOK_NOTNUM      ; If greater than '9', it's not a number
     jp      TOK_NUMBER          ; It's a number, jump to number parser
 
@@ -73,6 +73,21 @@ TOK_DONE:
     pop     BC
     pop     AF
     ret                         ; Return
+
+TOK_REM_COPY:
+    ld      A, (HL)             ; Read char from input
+    ld      (DE), A             ; Store to token buffer
+    or      A                   ; Is it 0?
+    jr      z, TOK_REM_DONE     ; If so, end
+    inc     HL
+    inc     DE
+    jr      TOK_REM_COPY
+TOK_REM_DONE:
+    pop     HL
+    pop     DE
+    pop     BC
+    pop     AF
+    ret
 
 ; -----------------------------------------------------------------------
 ; --- Number literal: 0xC0 + 2-byte LE ---
@@ -178,7 +193,7 @@ TOK_LETTER:
     call    TOK_KEYWORD         ; Try to match against all keywords
     jr      nz, TOK_VARIABLE    ; If no match, it must be a single-letter variable
     cp      0x8C                ; Did it match 'REM' (0x8C)?
-    jp      z, TOK_DONE         ; If REM, ignore the rest of the line (comments)
+    jp      z, TOK_REM_COPY     ; If REM, copy the rest of the line (comments)
     jp      TOK_LOOP            ; Otherwise, continue tokenizing
 
 TOK_VARIABLE:

@@ -139,7 +139,8 @@ PNUM_PRINT:
     pop     AF                  ; Pop a digit from the stack
     add     A, '0'              ; Convert integer 0-9 to ASCII '0'-'9'
     call    OUTCHAR             ; Print the character
-    djnz    PNUM_PRINT          ; Decrement B, loop if not zero (print all digits)
+    dec     B
+    jr      nz, PNUM_PRINT      ; Decrement B, loop if not zero (print all digits)
 
 PNUM_DONE:
     pop     HL                  ; Restore all working registers
@@ -149,38 +150,38 @@ PNUM_DONE:
     ret                         ; Return
 
 ; -----------------------------------------------------------------------
-; DIV10 - Divide HL by 10 (unsigned, repeated subtraction)
+; DIV10 - Divide HL by 10 (unsigned, 16-bit subtraction-based)
 ; Input: HL = dividend
 ; Output: HL = quotient, A = remainder
 ; Preserves: BC, DE
 ; -----------------------------------------------------------------------
 DIV10:
     push    BC                  ; Save BC
+    push    DE                  ; Save DE
+    
     ld      BC, 0               ; Initialize quotient to 0 in BC
+    ld      DE, -10             ; DE = -10 for subtraction
 
 DIV10_LOOP:
     ld      A, H                ; Check if high byte is zero
     or      A
-    jr      nz, DIV10_SUB       ; If high byte is not zero, HL is >= 256, so definitely >= 10
-    ld      A, L                ; If high byte is zero, check low byte
+    jr      nz, DIV10_SUB       ; If H != 0, HL is >= 256, so definitely >= 10
+    ld      A, L                ; Check low byte
     cp      10                  ; Is L < 10?
     jr      c, DIV10_DONE       ; If so, division is done
 
 DIV10_SUB:
-    ld      A, L                ; Load low byte
-    sub     10                  ; Subtract 10
-    ld      L, A                ; Save it back
-    ld      A, H                ; Load high byte
-    sbc     A, 0                ; Subtract borrow if any
-    ld      H, A                ; Save it back
+    add     HL, DE              ; HL = HL - 10
     inc     BC                  ; Increment quotient
     jr      DIV10_LOOP          ; Repeat subtraction
 
 DIV10_DONE:
-    ld      A, L                ; The remainder is left in L, move it to A
-    ld      L, C                ; Move the quotient from BC to HL
-    ld      H, B
-    pop     BC                  ; Restore original BC
+    ld      A, L                ; Remainder in A
+    ld      H, B                ; Move quotient (BC) to HL
+    ld      L, C
+    
+    pop     DE                  ; Restore DE
+    pop     BC                  ; Restore BC
     ret                         ; Return
 
 ; -----------------------------------------------------------------------

@@ -43,7 +43,6 @@ REPL:
     ld      HL, MSG_BANNER      ; Load banner string
     call    PRINT_STR           ; Print banner
     call    PRINT_CRLF          ; Print newline
-    call    PRINT_CRLF          ; Print newline
 
 REPL_LOOP:
     ld      A, (MEM_RUN_FLAG)   ; Check if a program is currently running
@@ -156,7 +155,6 @@ RUN_END:
 ; -----------------------------------------------------------------------
 REPL_STORE:
     call    LINE_STORE          ; Call memory manager to insert/delete line
-    call    PRINT_OK            ; Acknowledge operation
     jp      REPL_LOOP           ; Return to prompt
 
 ; -----------------------------------------------------------------------

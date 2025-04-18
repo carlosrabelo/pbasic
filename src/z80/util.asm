@@ -115,37 +115,44 @@ MK_SUCCESS:
 PARSE_NUMBER:
     push    BC                  ; Save BC
     ld      A, (HL)             ; Look at the first character
-    cp      '0'                 ; Is it less than '0'?
-    jr      c, PN_FAIL          ; If so, not a number, fail
-    cp      '9' + 1             ; Is it greater than '9'?
-    jr      nc, PN_FAIL         ; If so, not a number, fail
+    cp      48                  ; Compare with '0'
+    jr      z, PN_OK_START      ; If exactly '0', it is a valid digit
+    jr      c, PN_FAIL          ; If less than '0', not a number, fail
+    cp      58                  ; Compare with '9' + 1
+    jr      c, PN_OK_START      ; If less than 58, it is a valid digit (1-9)
+    jr      PN_FAIL             ; Otherwise, fail
+PN_OK_START:
     ld      DE, 0               ; Initialize accumulator (DE) to 0
 
 PN_LOOP:
     ld      A, (HL)             ; Load current character
-    cp      '0'                 ; Is it less than '0'?
-    jr      c, PN_DONE          ; If so, we've finished parsing digits
-    cp      '9' + 1             ; Is it greater than '9'?
-    jr      nc, PN_DONE         ; If so, we've finished parsing digits
-    sub     '0'                 ; Convert ASCII digit to integer value
+    cp      48                  ; Compare with '0'
+    jr      z, PN_OK_LOOP       ; If exactly '0', process it
+    jr      c, PN_DONE          ; If less than '0', we've finished parsing
+    cp      58                  ; Compare with '9' + 1
+    jr      c, PN_OK_LOOP       ; If less than 58, process it (1-9)
+    jr      PN_DONE             ; Otherwise, finished
+PN_OK_LOOP:
+    sub     48                  ; Convert ASCII digit to integer value
     ld      C, A                ; Store the digit in C
     ld      B, 0                ; BC now holds the new digit
 
-    ; Multiply DE by 10 (DE = DE * 10)
-    ; Optimized: result = DE * 2 + DE * 8 = DE * 10
-    push    HL                  ; Save text pointer
-    ld      H, D                ; Move accumulator DE into HL for math
-    ld      L, E
-    add     HL, HL              ; HL = DE * 2
-    push    HL                  ; Save DE * 2
-    add     HL, HL              ; HL = DE * 4
-    add     HL, HL              ; HL = DE * 8
-    pop     DE                  ; DE = DE * 2
-    add     HL, DE              ; HL = (DE * 8) + (DE * 2) = DE * 10
-    add     HL, BC              ; HL = (DE * 10) + digit
-    ld      E, L                ; Move result back to DE
-    ld      D, H
-    pop     HL                  ; Restore text pointer
+    ; Multiply DE by 10 and add digit (DE = DE * 10 + BC)
+    ld      (MEM_SCRATCH), HL   ; Save text pointer in memory
+    push    BC                  ; Save digit (BC) on the stack
+    
+    ld      HL, 0               ; Initialize sum HL to 0
+    ld      B, 10               ; Loop 10 times
+PN_MUL_LOOP:
+    add     HL, DE              ; HL = HL + DE
+    dec     B
+    jr      nz, PN_MUL_LOOP     ; Repeat 10 times
+    
+    pop     BC                  ; Restore digit (BC)
+    add     HL, BC              ; HL = DE * 10 + digit
+    ld      D, H                ; Save back to DE
+    ld      E, L
+    ld      HL, (MEM_SCRATCH)   ; Restore text pointer from memory
 
     inc     HL                  ; Advance to next character
     jr      PN_LOOP             ; Loop back
