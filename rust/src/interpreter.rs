@@ -60,6 +60,7 @@ impl Interpreter {
             TokenType::Goto => self.exec_goto(&tokens[1..], writer),
             TokenType::Gosub => self.exec_gosub(&tokens[1..], writer),
             TokenType::Return => self.exec_return(writer),
+            TokenType::If => self.exec_if(&tokens[1..], writer),
             TokenType::Variable(_)
                 if tokens.len() > 1 && tokens[1].token_type == TokenType::Equal =>
             {
@@ -255,6 +256,46 @@ impl Interpreter {
             self.branch_taken = true;
         }
         Ok(())
+    }
+
+    pub fn exec_if<W: Write>(&mut self, tokens: &[Token], writer: &mut W) -> io::Result<()> {
+        let mut eval = crate::evaluator::Evaluator::new(
+            tokens,
+            &mut self.vars,
+            &self.prog,
+            &mut self.rand_seed,
+        );
+
+        let cond = match eval.eval_condition() {
+            Ok(c) => c,
+            Err(_) => {
+                self.halted = true;
+                writeln!(writer, "?SYNTAX ERROR")?;
+                return Ok(());
+            }
+        };
+
+        if eval.peek().map(|t| &t.token_type) != Some(&TokenType::Then) {
+            self.halted = true;
+            writeln!(writer, "?SYNTAX ERROR")?;
+            return Ok(());
+        }
+        eval.advance(); // consume THEN
+
+        if !cond {
+            return Ok(());
+        }
+
+        let remaining = &tokens[eval.cursor..];
+        if remaining.is_empty() {
+            return Ok(());
+        }
+
+        if let TokenType::Number(_) = remaining[0].token_type {
+            self.exec_goto(remaining, writer)
+        } else {
+            self.execute_statement(remaining, writer)
+        }
     }
 
     pub fn run_program<W: Write>(&mut self, writer: &mut W) -> io::Result<()> {
@@ -512,5 +553,40 @@ mod tests {
             .set_line(10, tokenize("RETURN"), "RETURN".to_string());
         interp.execute_statement(&tokens, &mut buf).unwrap();
         assert_eq!(String::from_utf8(buf).unwrap(), "?SYNTAX ERROR\n");
+    }
+
+    #[test]
+    fn test_exec_if() {
+        let mut interp = Interpreter::new();
+        let mut buf = Vec::new();
+
+        // True branch executes PRINT
+        let tokens1 = tokenize("IF 10 > 5 THEN PRINT \"YES\"");
+        interp.execute_statement(&tokens1, &mut buf).unwrap();
+        assert_eq!(String::from_utf8(buf.clone()).unwrap(), "YES\n");
+
+        // False branch does not execute PRINT
+        buf.clear();
+        let tokens2 = tokenize("IF 10 < 5 THEN PRINT \"NO\"");
+        interp.execute_statement(&tokens2, &mut buf).unwrap();
+        assert!(buf.is_empty());
+
+        // IF condition with numeric GOTO branch
+        buf.clear();
+        interp.prog.set_line(
+            10,
+            tokenize("IF 1 = 1 THEN 30"),
+            "IF 1 = 1 THEN 30".to_string(),
+        );
+        interp
+            .prog
+            .set_line(20, tokenize("PRINT \"NO\""), "PRINT \"NO\"".to_string());
+        interp
+            .prog
+            .set_line(30, tokenize("PRINT \"YES\""), "PRINT \"YES\"".to_string());
+
+        let run_tokens = tokenize("RUN");
+        interp.execute_statement(&run_tokens, &mut buf).unwrap();
+        assert_eq!(String::from_utf8(buf).unwrap(), "YES\n");
     }
 }
