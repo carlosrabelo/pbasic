@@ -61,6 +61,11 @@ impl Interpreter {
             TokenType::Gosub => self.exec_gosub(&tokens[1..], writer),
             TokenType::Return => self.exec_return(writer),
             TokenType::If => self.exec_if(&tokens[1..], writer),
+            TokenType::Input => {
+                let stdin = io::stdin();
+                let mut reader = stdin.lock();
+                self.exec_input(&tokens[1..], &mut reader, writer)
+            }
             TokenType::End => self.exec_end(),
             TokenType::Exit => self.exec_exit(),
             TokenType::Variable(_)
@@ -308,6 +313,69 @@ impl Interpreter {
     pub fn exec_exit(&mut self) -> io::Result<()> {
         self.exit_requested = true;
         self.halted = true;
+        Ok(())
+    }
+
+    pub fn exec_input<R: io::BufRead, W: Write>(
+        &mut self,
+        tokens: &[Token],
+        reader: &mut R,
+        writer: &mut W,
+    ) -> io::Result<()> {
+        let mut cursor = 0;
+        if cursor < tokens.len() {
+            if let TokenType::String(ref prompt) = tokens[cursor].token_type {
+                write!(writer, "{}", prompt)?;
+                cursor += 1;
+                if cursor >= tokens.len() || tokens[cursor].token_type != TokenType::Semicolon {
+                    self.halted = true;
+                    writeln!(writer, "?SYNTAX ERROR")?;
+                    return Ok(());
+                }
+                cursor += 1;
+            } else {
+                write!(writer, "? ")?;
+            }
+        } else {
+            write!(writer, "? ")?;
+        }
+        writer.flush()?;
+
+        if cursor >= tokens.len() {
+            self.halted = true;
+            writeln!(writer, "?SYNTAX ERROR")?;
+            return Ok(());
+        }
+
+        let var_name = match tokens[cursor].token_type {
+            TokenType::Variable(c) => c,
+            _ => {
+                self.halted = true;
+                writeln!(writer, "?SYNTAX ERROR")?;
+                return Ok(());
+            }
+        };
+
+        let mut line = String::new();
+        let read_result = reader.read_line(&mut line);
+
+        if crate::signals::check_and_reset_interrupted() {
+            self.halted = true;
+            writeln!(writer)?;
+            return Ok(());
+        }
+
+        match read_result {
+            Ok(0) => {
+                self.halted = true;
+                return Ok(());
+            }
+            Ok(_) => {}
+            Err(e) => return Err(e),
+        }
+
+        let val: i32 = line.trim().parse().unwrap_or(0);
+        self.vars.set(var_name, val);
         Ok(())
     }
 
@@ -630,5 +698,41 @@ mod tests {
         let mut buf2 = Vec::new();
         interp.execute_statement(&exit_tokens, &mut buf2).unwrap();
         assert!(interp.exit_requested);
+    }
+
+    #[test]
+    fn test_exec_input() {
+        let mut interp = Interpreter::new();
+        let mut buf = Vec::new();
+
+        // Default prompt "? "
+        let tokens1 = tokenize("INPUT A");
+        let mut cursor1 = io::Cursor::new("42\n");
+        interp
+            .exec_input(&tokens1[1..], &mut cursor1, &mut buf)
+            .unwrap();
+        assert_eq!(String::from_utf8(buf.clone()).unwrap(), "? ");
+        assert_eq!(interp.vars.get('A'), 42);
+
+        // Custom string prompt
+        buf.clear();
+        let tokens2 = tokenize("INPUT \"ENTER NUMBER: \"; B");
+        let mut cursor2 = io::Cursor::new("-99\n");
+        interp
+            .exec_input(&tokens2[1..], &mut cursor2, &mut buf)
+            .unwrap();
+        assert_eq!(String::from_utf8(buf.clone()).unwrap(), "ENTER NUMBER: ");
+        assert_eq!(interp.vars.get('B'), -99);
+
+        // Ctrl+C during input
+        buf.clear();
+        crate::signals::set_interrupted(true);
+        let tokens3 = tokenize("INPUT C");
+        let mut cursor3 = io::Cursor::new("123\n");
+        interp
+            .exec_input(&tokens3[1..], &mut cursor3, &mut buf)
+            .unwrap();
+        assert!(interp.halted);
+        assert_eq!(String::from_utf8(buf).unwrap(), "? \n");
     }
 }
