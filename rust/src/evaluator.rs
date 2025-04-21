@@ -77,12 +77,12 @@ impl<'a> Evaluator<'a> {
                 let arg = self.eval_expression()?;
                 self.consume_token(TokenType::RParen)?;
 
-                *self.rand_seed = self.rand_seed.wrapping_mul(25173).wrapping_add(13849);
+                let raw = crate::env::next_rnd(self.rand_seed);
                 if arg <= 0 {
-                    Ok(*self.rand_seed as i32)
+                    Ok(raw as i32)
                 } else {
                     let max = arg as u16;
-                    let res = (*self.rand_seed % max) + 1;
+                    let res = (raw % max) + 1;
                     Ok(res as i32)
                 }
             }
