@@ -116,12 +116,59 @@ pub fn run() {
     let _ = run_loop(&mut reader, &mut writer);
 }
 
-pub fn run_file<R: BufRead>(_reader: R) {
-    // Stored program loading and execution will be integrated in subsequent tasks
+pub fn run_file<R: BufRead>(mut reader: R) {
+    let mut interp = crate::interpreter::Interpreter::new();
+    let stdout = io::stdout();
+    let mut writer = stdout.lock();
+    let _ = run_file_with_interp(&mut reader, &mut writer, &mut interp);
+}
+
+pub fn run_file_with_interp<R: BufRead, W: Write>(
+    reader: &mut R,
+    writer: &mut W,
+    interp: &mut crate::interpreter::Interpreter,
+) -> io::Result<()> {
+    while let Some(line) = read_line(reader)? {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        let mut parts = trimmed.splitn(2, |c: char| c.is_ascii_whitespace());
+        let first_word = parts.next().unwrap_or("");
+        if let Ok(line_num) = first_word.parse::<u16>() {
+            let rest = parts.next().unwrap_or("").trim();
+            if rest.is_empty() {
+                interp.prog.remove_line(line_num);
+            } else {
+                let tokens = crate::lexer::tokenize(rest);
+                interp.prog.set_line(line_num, tokens, rest.to_string());
+            }
+        } else {
+            let tokens = crate::lexer::tokenize(trimmed);
+            interp.execute_statement(&tokens, writer)?;
+            if interp.exit_requested {
+                return Ok(());
+            }
+        }
+    }
+
+    interp.run_program(writer)?;
+    Ok(())
 }
 
 /// Runs the interactive REPL loop reading from `reader` and writing to `writer`.
 pub fn run_loop<R: BufRead, W: Write>(reader: &mut R, writer: &mut W) -> io::Result<()> {
+    let mut interp = crate::interpreter::Interpreter::new();
+    run_loop_with_interp(reader, writer, &mut interp)
+}
+
+/// Runs the interactive REPL loop using an explicit `Interpreter` instance.
+pub fn run_loop_with_interp<R: BufRead, W: Write>(
+    reader: &mut R,
+    writer: &mut W,
+    interp: &mut crate::interpreter::Interpreter,
+) -> io::Result<()> {
     loop {
         if crate::signals::check_and_reset_interrupted() {
             writeln!(writer)?;
@@ -163,20 +210,20 @@ pub fn run_loop<R: BufRead, W: Write>(reader: &mut R, writer: &mut W) -> io::Res
         let first_word = parts.next().unwrap_or("");
         if let Ok(line_num) = first_word.parse::<u16>() {
             let rest = parts.next().unwrap_or("").trim();
-            handle_numbered_line(line_num, rest);
+            if rest.is_empty() {
+                interp.prog.remove_line(line_num);
+            } else {
+                let tokens = crate::lexer::tokenize(rest);
+                interp.prog.set_line(line_num, tokens, rest.to_string());
+            }
         } else {
-            handle_immediate_line(trimmed, writer)?;
+            let tokens = crate::lexer::tokenize(trimmed);
+            interp.execute_statement(&tokens, writer)?;
+            if interp.exit_requested {
+                break;
+            }
         }
     }
-    Ok(())
-}
-
-fn handle_numbered_line(_line_num: u16, _rest: &str) {
-    // Will be connected to Program store in 003
-}
-
-fn handle_immediate_line<W: Write>(_line: &str, _writer: &mut W) -> io::Result<()> {
-    // Will be connected to statement dispatcher in 006
     Ok(())
 }
 
