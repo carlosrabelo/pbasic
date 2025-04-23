@@ -16,6 +16,8 @@ Deterministic integer BASIC interpreter implemented across modern programming la
 ## Prerequisites
 
 - **GCC / Clang** — C++20 compiler required for the C++ component (`g++` 11+ or `clang++` 13+)
+- **Go** — Go 1.24+ required for the Go component
+- **Rust** — Rust 1.70+ (`cargo`) required for the Rust component
 - **Make** — GNU Make 4.0+ for build automation
 
 ## Installation
@@ -34,10 +36,17 @@ make build
 
 ### Interactive REPL
 
-Start the interpreter without arguments:
+Start any implementation's interpreter without arguments:
 
 ```bash
+# C++
 ./cpp/bin/pbasic
+
+# Go
+./go/bin/pbasic
+
+# Rust
+./rust/bin/pbasic
 ```
 
 Example session:
@@ -52,11 +61,20 @@ HELLO, WORLD!
 
 ### Batch Script Execution
 
-Execute a BASIC source file directly:
+Execute a shared BASIC demo script or any `.bas` file directly with any implementation:
 
 ```bash
-./cpp/bin/pbasic program.bas
+# Run hello world demo
+./cpp/bin/pbasic demos/01_hello.bas
+./go/bin/pbasic demos/01_hello.bas
+./rust/bin/pbasic demos/01_hello.bas
 ```
+
+The `demos/` directory contains standard example programs:
+- `demos/01_hello.bas` — Output, variable loops, and iteration
+- `demos/02_math.bas` — Signed 32-bit math, division, and modulo
+- `demos/03_guess.bas` — Interactive number guessing game (`INPUT`, `RND`)
+- `demos/99_test.bas` — Comprehensive automated regression test suite
 
 ## Project Layout
 
