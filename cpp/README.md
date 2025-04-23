@@ -44,7 +44,6 @@ make build
 src/                 # C++20 source code (main.cpp, core/)
 tests/               # Catch2 test suites
 lib/                 # Vendored third-party headers (Catch2)
-demos/               # BASIC example scripts
 bin/                 # Compiled binaries
 .make/               # Automation scripts
 Makefile             # Component Makefile

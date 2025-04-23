@@ -42,7 +42,6 @@ make build
 
 ```
 src/                 # Rust source code (main.rs, lib.rs, modules)
-demos/               # BASIC example scripts
 bin/                 # Compiled binaries
 .make/               # Automation scripts
 Makefile             # Component Makefile

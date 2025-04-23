@@ -61,11 +61,12 @@ Execute um arquivo fonte BASIC diretamente:
 ## Estrutura do Projeto
 
 ```
-cpp/                 # C++20 implementation and Catch2 test suite
-go/                  # Go implementation and test suite
-rust/                # Rust implementation and test suite
-Makefile             # Root orchestrator Makefile
-LICENSE              # MIT License
+cpp/                 # Implementação em C++20 e suíte de testes Catch2
+go/                  # Implementação em Go e suíte de testes
+rust/                # Implementação em Rust e suíte de testes
+demos/               # Scripts BASIC de demonstração compartilhados
+Makefile             # Makefile orquestrador raiz
+LICENSE              # Licença MIT
 ```
 
 ## Desenvolvimento

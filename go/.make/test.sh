@@ -10,9 +10,14 @@ go test -v ./...
 # Build binary if test passes
 "$ROOT_DIR/.make/build.sh"
 
-if [ -f "$ROOT_DIR/demos/99_test.bas" ]; then
+DEMO_FILE="$ROOT_DIR/../demos/99_test.bas"
+if [ ! -f "$DEMO_FILE" ]; then
+    DEMO_FILE="$ROOT_DIR/demos/99_test.bas"
+fi
+
+if [ -f "$DEMO_FILE" ]; then
     echo "Running regression demo suite (demos/99_test.bas)..."
-    DEMO_OUTPUT=$("$ROOT_DIR/bin/pbasic" "$ROOT_DIR/demos/99_test.bas")
+    DEMO_OUTPUT=$("$ROOT_DIR/bin/pbasic" "$DEMO_FILE")
 
     assert_contains() {
         local pattern="$1"
