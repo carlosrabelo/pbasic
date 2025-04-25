@@ -3,7 +3,7 @@ program test_runner;
 {$mode objfpc}{$H+}
 
 uses
-  SysUtils, Classes, Process;
+  SysUtils, Classes, Process, pbasic_repl;
 
 var
   TotalTests: Integer = 0;
@@ -114,9 +114,77 @@ begin
   AssertContains('PBasic', OutStr, 'TestCLIArgumentDispatch/interactive_banner_text');
 end;
 
+procedure AssertEquals(const Expected, Actual, TestName: string);
+begin
+  AssertTrue(Expected = Actual, TestName + ' (expected "' + Expected + '", got "' + Actual + '")');
+end;
+
+procedure TestConsoleIOHelpers;
+var
+  TempFile, Captured: string;
+  F: TextFile;
+  Line: string;
+begin
+  writeln('=== RUN TestConsoleIOHelpers');
+  TempFile := GetTempDir + 'pbasic_io_capture.tmp';
+
+  // 1. PrintStr outputs exact string
+  AssignFile(F, TempFile);
+  Rewrite(F);
+  PrintStr(F, 'HELLO');
+  CloseFile(F);
+
+  Reset(F);
+  Captured := '';
+  while not Eof(F) do
+  begin
+    ReadLn(F, Line);
+    Captured := Captured + Line;
+  end;
+  CloseFile(F);
+  AssertEquals('HELLO', Captured, 'TestConsoleIOHelpers/PrintStr_outputs_exact_string');
+
+  // 2. PrintNumber outputs signed 32-bit integers
+  Rewrite(F);
+  PrintNumber(F, 123456);
+  PrintStr(F, ' ');
+  PrintNumber(F, -98765);
+  PrintStr(F, ' ');
+  PrintNumber(F, 0);
+  CloseFile(F);
+
+  Reset(F);
+  Captured := '';
+  while not Eof(F) do
+  begin
+    ReadLn(F, Line);
+    Captured := Captured + Line;
+  end;
+  CloseFile(F);
+  AssertEquals('123456 -98765 0', Captured, 'TestConsoleIOHelpers/PrintNumber_outputs_signed_32bit_integers');
+
+  // 3. PrintOK outputs OK followed by newline
+  Rewrite(F);
+  PrintOK(F);
+  CloseFile(F);
+
+  Reset(F);
+  Captured := '';
+  while not Eof(F) do
+  begin
+    ReadLn(F, Line);
+    Captured := Captured + Line;
+  end;
+  CloseFile(F);
+  AssertEquals('OK', Captured, 'TestConsoleIOHelpers/PrintOK_outputs_OK');
+
+  DeleteFile(TempFile);
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
+  TestConsoleIOHelpers;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
