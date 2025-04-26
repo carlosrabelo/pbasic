@@ -8,6 +8,8 @@ echo "Running Free Pascal quality checks..."
 
 if [ -f "$SRC_MAIN" ]; then
     fpc -Mobjfpc -Sh -vwne -s \
+        -FE"$ROOT_DIR/bin" \
+        -FU"$ROOT_DIR/bin" \
         -Fu"$ROOT_DIR/src" \
         -Fu"$ROOT_DIR/lib" \
         "$SRC_MAIN" >/dev/null

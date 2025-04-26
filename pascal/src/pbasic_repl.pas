@@ -20,7 +20,13 @@ function FoldCase(const S: string): string;
 function ReadLine(var F: Text; var S: string): Boolean; overload;
 function ReadLine(var S: string): Boolean; overload;
 
+procedure StartREPL(var InFile, OutFile: Text); overload;
+procedure StartREPL; overload;
+
 implementation
+
+uses
+  SysUtils, pbasic_signals;
 
 procedure PrintStr(var F: Text; const S: string);
 begin
@@ -95,6 +101,39 @@ end;
 function ReadLine(var S: string): Boolean;
 begin
   Result := ReadLine(Input, S);
+end;
+
+procedure StartREPL(var InFile, OutFile: Text);
+var
+  Line: string;
+begin
+  writeln(OutFile, 'PBasic');
+  write(OutFile, '> ');
+  Flush(OutFile);
+
+  while True do
+  begin
+    if CheckAndResetInterrupted then
+    begin
+      writeln(OutFile);
+      write(OutFile, '> ');
+      Flush(OutFile);
+    end;
+
+    if not ReadLine(InFile, Line) then
+      Break;
+
+    if Line = 'EXIT' then
+      Break;
+
+    write(OutFile, '> ');
+    Flush(OutFile);
+  end;
+end;
+
+procedure StartREPL;
+begin
+  StartREPL(Input, Output);
 end;
 
 end.

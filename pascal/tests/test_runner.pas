@@ -3,7 +3,7 @@ program test_runner;
 {$mode objfpc}{$H+}
 
 uses
-  SysUtils, Classes, Process, pbasic_repl;
+  SysUtils, Classes, Process, pbasic_repl, pbasic_signals;
 
 var
   TotalTests: Integer = 0;
@@ -44,18 +44,33 @@ begin
     Proc.Executable := ExePath;
     if Length(Args) > 0 then
       Proc.Parameters.Add(Args);
-    Proc.Options := [poWaitOnExit, poUsePipes];
+    Proc.Options := [poUsePipes];
     Proc.Execute;
+    Proc.CloseInput;
 
-    // Read Output
+    while Proc.Running do
+    begin
+      while Proc.Output.NumBytesAvailable > 0 do
+      begin
+        BytesRead := Proc.Output.Read(Buffer, SizeOf(Buffer));
+        if BytesRead > 0 then
+          MemStreamOut.Write(Buffer, BytesRead);
+      end;
+      while Proc.Stderr.NumBytesAvailable > 0 do
+      begin
+        BytesRead := Proc.Stderr.Read(Buffer, SizeOf(Buffer));
+        if BytesRead > 0 then
+          MemStreamErr.Write(Buffer, BytesRead);
+      end;
+      Sleep(10);
+    end;
+
     while Proc.Output.NumBytesAvailable > 0 do
     begin
       BytesRead := Proc.Output.Read(Buffer, SizeOf(Buffer));
       if BytesRead > 0 then
         MemStreamOut.Write(Buffer, BytesRead);
     end;
-
-    // Read Stderr
     while Proc.Stderr.NumBytesAvailable > 0 do
     begin
       BytesRead := Proc.Stderr.Read(Buffer, SizeOf(Buffer));
@@ -71,7 +86,8 @@ begin
     if MemStreamErr.Size > 0 then
       Move(MemStreamErr.Memory^, StderrStr[1], MemStreamErr.Size);
 
-    Result := Proc.ExitStatus;
+    Proc.WaitOnExit;
+    Result := Proc.ExitCode;
   finally
     MemStreamOut.Free;
     MemStreamErr.Free;
@@ -219,12 +235,66 @@ begin
   DeleteFile(TempFile);
 end;
 
+procedure TestSignalInterruptedFlag;
+begin
+  writeln('=== RUN TestSignalInterruptedFlag');
+  SetInterrupted(False);
+  AssertTrue(not CheckAndResetInterrupted, 'TestSignalInterruptedFlag/initially_false');
+
+  SetInterrupted(True);
+  AssertTrue(CheckAndResetInterrupted, 'TestSignalInterruptedFlag/returns_true_when_set');
+  AssertTrue(not CheckAndResetInterrupted, 'TestSignalInterruptedFlag/resets_to_false_after_check');
+end;
+
+procedure TestREPLStart;
+var
+  InFile, OutFile: TextFile;
+  InPath, OutPath, Captured, Line: string;
+begin
+  writeln('=== RUN TestREPLStart');
+  InPath := GetTempDir + 'pbasic_repl_in.tmp';
+  OutPath := GetTempDir + 'pbasic_repl_out.tmp';
+
+  AssignFile(InFile, InPath);
+  Rewrite(InFile);
+  writeln(InFile, 'EXIT');
+  CloseFile(InFile);
+
+  AssignFile(InFile, InPath);
+  Reset(InFile);
+  AssignFile(OutFile, OutPath);
+  Rewrite(OutFile);
+
+  StartREPL(InFile, OutFile);
+
+  CloseFile(InFile);
+  CloseFile(OutFile);
+
+  AssignFile(OutFile, OutPath);
+  Reset(OutFile);
+  Captured := '';
+  while not Eof(OutFile) do
+  begin
+    ReadLn(OutFile, Line);
+    Captured := Captured + Line + #10;
+  end;
+  CloseFile(OutFile);
+
+  AssertContains('PBasic', Captured, 'TestREPLStart/displays_banner');
+  AssertContains('> ', Captured, 'TestREPLStart/displays_prompt');
+
+  DeleteFile(InPath);
+  DeleteFile(OutPath);
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
   TestConsoleIOHelpers;
   TestFoldCase;
   TestReadLine;
+  TestSignalInterruptedFlag;
+  TestREPLStart;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
