@@ -3,7 +3,7 @@ program test_runner;
 {$mode objfpc}{$H+}
 
 uses
-  SysUtils, Classes, Process, pbasic_repl, pbasic_signals;
+  SysUtils, Classes, Process, pbasic_repl, pbasic_signals, pbasic_token;
 
 var
   TotalTests: Integer = 0;
@@ -287,6 +287,39 @@ begin
   DeleteFile(OutPath);
 end;
 
+procedure TestTokenDataStructures;
+var
+  T1, T2, T3, T4: TToken;
+  Arr: TTokenArray;
+begin
+  writeln('=== RUN TestTokenDataStructures');
+
+  T1 := CreateToken(ttPrint, 'PRINT');
+  AssertTrue(T1.TokenType = ttPrint, 'TestTokenDataStructures/token_type_print');
+  AssertEquals('PRINT', T1.Literal, 'TestTokenDataStructures/token_literal_print');
+
+  T2 := CreateNumberToken(42, '42');
+  AssertTrue(T2.TokenType = ttNumber, 'TestTokenDataStructures/token_type_number');
+  AssertTrue(T2.NumberVal = 42, 'TestTokenDataStructures/token_numberval_42');
+  AssertEquals('42', T2.Literal, 'TestTokenDataStructures/token_literal_42');
+
+  T3 := CreateStringToken('HELLO WORLD');
+  AssertTrue(T3.TokenType = ttString, 'TestTokenDataStructures/token_type_string');
+  AssertEquals('HELLO WORLD', T3.Literal, 'TestTokenDataStructures/token_literal_string');
+
+  T4 := CreateIdentToken('X');
+  AssertTrue(T4.TokenType = ttIdent, 'TestTokenDataStructures/token_type_ident');
+  AssertTrue(T4.VarName = 'X', 'TestTokenDataStructures/token_varname_x');
+  AssertEquals('X', T4.Literal, 'TestTokenDataStructures/token_literal_x');
+
+  SetLength(Arr, 2);
+  Arr[0] := T1;
+  Arr[1] := T4;
+  AssertTrue(Length(Arr) = 2, 'TestTokenDataStructures/array_length');
+  AssertEquals('PRINT', TokenTypeToString(Arr[0].TokenType), 'TestTokenDataStructures/type_to_string_print');
+  AssertEquals('IDENT', TokenTypeToString(Arr[1].TokenType), 'TestTokenDataStructures/type_to_string_ident');
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -295,6 +328,7 @@ begin
   TestReadLine;
   TestSignalInterruptedFlag;
   TestREPLStart;
+  TestTokenDataStructures;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
