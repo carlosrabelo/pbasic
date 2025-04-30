@@ -426,6 +426,32 @@ begin
   AssertTrue(Tokens[7].TokenType = ttEOL, 'TestLexerLiteralsAndOperators/rel_eol');
 end;
 
+procedure TestTokenDetokenizer;
+var
+  InputStr, Reconstructed: string;
+  Tokens: TTokenArray;
+begin
+  writeln('=== RUN TestTokenDetokenizer');
+
+  // PRINT statement round-trip
+  InputStr := 'PRINT "ANSWER IS: ", 42';
+  Tokens := Tokenize(InputStr);
+  Reconstructed := Detokenize(Tokens);
+  AssertEquals('PRINT "ANSWER IS: ", 42', Reconstructed, 'TestTokenDetokenizer/print_statement');
+
+  // LET assignment with math expression
+  InputStr := 'LET A = B + 10 * (C - 2)';
+  Tokens := Tokenize(InputStr);
+  Reconstructed := Detokenize(Tokens);
+  AssertEquals('LET A = B + 10 * (C - 2)', Reconstructed, 'TestTokenDetokenizer/let_math_expr');
+
+  // IF THEN statement with relational operator
+  InputStr := 'IF X <> 0 THEN GOTO 100';
+  Tokens := Tokenize(InputStr);
+  Reconstructed := Detokenize(Tokens);
+  AssertEquals('IF X <> 0 THEN GOTO 100', Reconstructed, 'TestTokenDetokenizer/if_then_goto');
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -438,6 +464,7 @@ begin
   TestLexerPunctuation;
   TestLexerKeywordsAndVars;
   TestLexerLiteralsAndOperators;
+  TestTokenDetokenizer;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');

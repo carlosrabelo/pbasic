@@ -26,8 +26,12 @@ type
   end;
 
 function Tokenize(const S: string): TTokenArray;
+function Detokenize(const Tokens: TTokenArray): string;
 
 implementation
+
+uses
+  SysUtils;
 
 constructor TLexer.Create(const AInput: string);
 begin
@@ -253,6 +257,67 @@ begin
   finally
     Lex.Free;
   end;
+end;
+
+function Detokenize(const Tokens: TTokenArray): string;
+var
+  S: string;
+  I: Integer;
+  Tok: TToken;
+begin
+  S := '';
+  for I := 0 to High(Tokens) do
+  begin
+    Tok := Tokens[I];
+    case Tok.TokenType of
+      ttLet: S := S + 'LET ';
+      ttGoto: S := S + 'GOTO ';
+      ttGosub: S := S + 'GOSUB ';
+      ttPrint: S := S + 'PRINT ';
+      ttIf: S := S + 'IF ';
+      ttInput: S := S + 'INPUT ';
+      ttReturn: S := S + 'RETURN';
+      ttEnd: S := S + 'END';
+      ttList: S := S + 'LIST';
+      ttRun: S := S + 'RUN';
+      ttNew: S := S + 'NEW';
+      ttExit: S := S + 'EXIT';
+      ttRem:
+      begin
+        S := S + 'REM ' + Tok.Literal;
+      end;
+      ttThen: S := S + ' THEN ';
+      ttFree: S := S + 'FREE';
+      ttRnd: S := S + 'RND';
+      ttAbs: S := S + 'ABS';
+      ttNumber: S := S + IntToStr(Tok.NumberVal);
+      ttString: S := S + '"' + Tok.Literal + '"';
+      ttIdent: S := S + Tok.VarName;
+      ttPlus: S := S + ' + ';
+      ttMinus:
+      begin
+        if (Length(S) = 0) or (S[Length(S)] = '(') or (S[Length(S)] = ' ') then
+          S := S + '-'
+        else
+          S := S + ' - ';
+      end;
+      ttStar: S := S + ' * ';
+      ttSlash: S := S + ' / ';
+      ttEq: S := S + ' = ';
+      ttNotEq: S := S + ' <> ';
+      ttLt: S := S + ' < ';
+      ttGt: S := S + ' > ';
+      ttLtEq: S := S + ' <= ';
+      ttGtEq: S := S + ' >= ';
+      ttOpenParen: S := S + '(';
+      ttCloseParen: S := S + ')';
+      ttComma: S := S + ', ';
+      ttSemicolon: S := S + '; ';
+      ttColon: S := S + ' : ';
+      ttEOL, ttEOF, ttIllegal: ;
+    end;
+  end;
+  Result := S;
 end;
 
 end.
