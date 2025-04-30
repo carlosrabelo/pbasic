@@ -18,6 +18,8 @@ type
     function IsAtEnd: Boolean;
     function ReadIdentifier: string;
     function ReadRestOfLine: string;
+    function ReadNumber: TToken;
+    function ReadString: TToken;
   public
     constructor Create(const AInput: string);
     function Tokenize: TTokenArray;
@@ -85,6 +87,36 @@ begin
   end;
 end;
 
+function TLexer.ReadNumber: TToken;
+var
+  NumStr: string;
+  Val: Int64;
+  Digit: Char;
+begin
+  NumStr := '';
+  Val := 0;
+  while (not IsAtEnd) and (Peek in ['0'..'9']) do
+  begin
+    Digit := Advance;
+    NumStr := NumStr + Digit;
+    Val := Val * 10 + (Ord(Digit) - Ord('0'));
+  end;
+  Result := CreateNumberToken(LongInt(Val), NumStr);
+end;
+
+function TLexer.ReadString: TToken;
+var
+  StrContent: string;
+begin
+  StrContent := '';
+  Advance; // Skip opening quote
+  while (not IsAtEnd) and (Peek <> '"') do
+    StrContent := StrContent + Advance;
+  if (not IsAtEnd) and (Peek = '"') then
+    Advance; // Skip closing quote
+  Result := CreateStringToken(StrContent);
+end;
+
 function TLexer.Tokenize: TTokenArray;
 var
   Tokens: TTokenArray;
@@ -144,6 +176,18 @@ begin
       Continue;
     end;
 
+    if Ch in ['0'..'9'] then
+    begin
+      AddToken(ReadNumber);
+      Continue;
+    end;
+
+    if Ch = '"' then
+    begin
+      AddToken(ReadString);
+      Continue;
+    end;
+
     Ch := Advance;
     case Ch of
       '+': AddToken(CreateToken(ttPlus, '+'));
@@ -155,6 +199,41 @@ begin
       ',': AddToken(CreateToken(ttComma, ','));
       ';': AddToken(CreateToken(ttSemicolon, ';'));
       ':': AddToken(CreateToken(ttColon, ':'));
+      '=':
+      begin
+        if Peek = '=' then
+        begin
+          Advance;
+          AddToken(CreateToken(ttEq, '=='));
+        end
+        else
+          AddToken(CreateToken(ttEq, '='));
+      end;
+      '<':
+      begin
+        if Peek = '>' then
+        begin
+          Advance;
+          AddToken(CreateToken(ttNotEq, '<>'));
+        end
+        else if Peek = '=' then
+        begin
+          Advance;
+          AddToken(CreateToken(ttLtEq, '<='));
+        end
+        else
+          AddToken(CreateToken(ttLt, '<'));
+      end;
+      '>':
+      begin
+        if Peek = '=' then
+        begin
+          Advance;
+          AddToken(CreateToken(ttGtEq, '>='));
+        end
+        else
+          AddToken(CreateToken(ttGt, '>'));
+      end;
       else
         AddToken(CreateToken(ttIllegal, Ch));
     end;

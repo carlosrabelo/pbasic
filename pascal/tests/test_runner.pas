@@ -387,6 +387,45 @@ begin
   AssertTrue(Tokens[1].TokenType = ttEOL, 'TestLexerKeywordsAndVars/rem_eol');
 end;
 
+procedure TestLexerLiteralsAndOperators;
+var
+  Tokens: TTokenArray;
+begin
+  writeln('=== RUN TestLexerLiteralsAndOperators');
+
+  // Integer literals
+  Tokens := Tokenize('0 42 65535');
+  AssertTrue(Length(Tokens) = 4, 'TestLexerLiteralsAndOperators/num_len');
+  AssertTrue(Tokens[0].TokenType = ttNumber, 'TestLexerLiteralsAndOperators/num0_type');
+  AssertTrue(Tokens[0].NumberVal = 0, 'TestLexerLiteralsAndOperators/num0_val');
+  AssertTrue(Tokens[1].TokenType = ttNumber, 'TestLexerLiteralsAndOperators/num42_type');
+  AssertTrue(Tokens[1].NumberVal = 42, 'TestLexerLiteralsAndOperators/num42_val');
+  AssertTrue(Tokens[2].TokenType = ttNumber, 'TestLexerLiteralsAndOperators/num65535_type');
+  AssertTrue(Tokens[2].NumberVal = 65535, 'TestLexerLiteralsAndOperators/num65535_val');
+
+  // String literals
+  Tokens := Tokenize('"HELLO WORLD" "" "123 + 456"');
+  AssertTrue(Length(Tokens) = 4, 'TestLexerLiteralsAndOperators/str_len');
+  AssertTrue(Tokens[0].TokenType = ttString, 'TestLexerLiteralsAndOperators/str1_type');
+  AssertEquals('HELLO WORLD', Tokens[0].Literal, 'TestLexerLiteralsAndOperators/str1_val');
+  AssertTrue(Tokens[1].TokenType = ttString, 'TestLexerLiteralsAndOperators/str2_type');
+  AssertEquals('', Tokens[1].Literal, 'TestLexerLiteralsAndOperators/str2_val');
+  AssertTrue(Tokens[2].TokenType = ttString, 'TestLexerLiteralsAndOperators/str3_type');
+  AssertEquals('123 + 456', Tokens[2].Literal, 'TestLexerLiteralsAndOperators/str3_val');
+
+  // Relational operators
+  Tokens := Tokenize('= == <> <= >= < >');
+  AssertTrue(Length(Tokens) = 8, 'TestLexerLiteralsAndOperators/rel_len');
+  AssertTrue(Tokens[0].TokenType = ttEq, 'TestLexerLiteralsAndOperators/tok_eq');
+  AssertTrue(Tokens[1].TokenType = ttEq, 'TestLexerLiteralsAndOperators/tok_eqeq');
+  AssertTrue(Tokens[2].TokenType = ttNotEq, 'TestLexerLiteralsAndOperators/tok_neq');
+  AssertTrue(Tokens[3].TokenType = ttLtEq, 'TestLexerLiteralsAndOperators/tok_lteq');
+  AssertTrue(Tokens[4].TokenType = ttGtEq, 'TestLexerLiteralsAndOperators/tok_gteq');
+  AssertTrue(Tokens[5].TokenType = ttLt, 'TestLexerLiteralsAndOperators/tok_lt');
+  AssertTrue(Tokens[6].TokenType = ttGt, 'TestLexerLiteralsAndOperators/tok_gt');
+  AssertTrue(Tokens[7].TokenType = ttEOL, 'TestLexerLiteralsAndOperators/rel_eol');
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -398,6 +437,7 @@ begin
   TestTokenDataStructures;
   TestLexerPunctuation;
   TestLexerKeywordsAndVars;
+  TestLexerLiteralsAndOperators;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
