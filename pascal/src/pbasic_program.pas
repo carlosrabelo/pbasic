@@ -28,6 +28,7 @@ type
     function HasLine(LineNo: Word): Boolean;
     function GetLine(LineNo: Word; out Tokens: TTokenArray; out RawText: string): Boolean;
     procedure SetLine(LineNo: Word; const Tokens: TTokenArray; const RawText: string = '');
+    function RemoveLine(LineNo: Word): Boolean;
   end;
 
 implementation
@@ -124,13 +125,7 @@ var
 begin
   if (Length(Tokens) = 0) or ((Length(Tokens) = 1) and (Tokens[0].TokenType = ttEOL)) then
   begin
-    Idx := FindIndex(LineNo);
-    if Idx >= 0 then
-    begin
-      for I := Idx to High(FLines) - 1 do
-        FLines[I] := FLines[I + 1];
-      SetLength(FLines, Length(FLines) - 1);
-    end;
+    RemoveLine(LineNo);
     Exit;
   end;
 
@@ -151,6 +146,20 @@ begin
   FLines[Idx].LineNumber := LineNo;
   FLines[Idx].Tokens := Tokens;
   FLines[Idx].RawText := RawText;
+end;
+
+function TProgram.RemoveLine(LineNo: Word): Boolean;
+var
+  Idx, I: Integer;
+begin
+  Idx := FindIndex(LineNo);
+  if Idx < 0 then
+    Exit(False);
+
+  for I := Idx to High(FLines) - 1 do
+    FLines[I] := FLines[I + 1];
+  SetLength(FLines, Length(FLines) - 1);
+  Result := True;
 end;
 
 end.
