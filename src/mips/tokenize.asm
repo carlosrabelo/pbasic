@@ -301,15 +301,26 @@ TK_END_MATCH:
     li      $t3, 0x87
     j       TK_KW_STORE
 TK_REM_MATCH:    
-    # REM means ignore the rest of the line
+    # REM matched!
+    # $v1 points to after "REM" in input buffer
     lw      $t1, 4($sp)
-    lw      $t0, 8($sp)
     lw      $ra, 12($sp)
     addiu   $sp, $sp, 16
+
+    # 1. Write the REM token (0x8C)
     li      $t3, 0x8C
     sb      $t3, 0($t1)
     addiu   $t1, $t1, 1
-    j       TOK_DONE
+
+    # 2. Copy the rest of the line literally
+    move    $t0, $v1            # Start copying from after "REM"
+TK_REM_COPY_LOOP:
+    lbu     $t2, 0($t0)         # Read char from input
+    sb      $t2, 0($t1)         # Store to token buffer
+    beqz    $t2, TOK_DONE       # If null, we are done
+    addiu   $t0, $t0, 1
+    addiu   $t1, $t1, 1
+    j       TK_REM_COPY_LOOP
 
 TK_LIST_MATCH:
     li      $t3, 0x88

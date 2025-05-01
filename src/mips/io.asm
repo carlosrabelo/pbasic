@@ -130,53 +130,32 @@ PRINT_CRLF:
 # -----------------------------------------------------------------------
 
 READ_LINE:
+    addiu   $sp, $sp, -4
+    sw      $ra, 0($sp)
+
+    la      $a0, MEM_INPUT_BUF
+    li      $a1, 127            # Max length (leaves room for null terminator)
+    li      $v0, 8              # SPIM syscall 8: Read String
+    syscall
+
+    # Check if we read anything or if it's EOF (an empty read on first char)
     la      $t0, MEM_INPUT_BUF
-    li      $t2, 127        # Max characters to read (leaves room for null terminator)
-    li      $t3, 10         # ASCII for newline (\n)
-    li      $t5, 1          # First character flag
+    lbu     $t1, 0($t0)
+    beqz    $t1, READ_LINE_EOF
 
-RL_CHAR_LOOP:
-    li      $v0, 12         # SPIM syscall 12: Read Character
-    syscall                 # Character is returned in $v0
-    
-    # Check for EOF (0 or -1 in SPIM)
-    beqz    $v0, RL_CHECK_EOF
-    li      $t4, -1
-    beq     $v0, $t4, RL_CHECK_EOF
-    
-    # Clear first character flag
-    move    $t5, $zero
-    
-    # Check for newline (\n)
-    beq     $v0, $t3, RL_EOF_OR_NL
-    
-    # Ignore carriage return (\r, ASCII 13)
-    li      $t4, 13
-    beq     $v0, $t4, RL_CHAR_LOOP
-    
-    # Store character if we have space
-    beqz    $t2, RL_SKIP_STORE
-    sb      $v0, 0($t0)
-    addiu   $t0, $t0, 1
-    addiu   $t2, $t2, -1
-    
-RL_SKIP_STORE:
-    j       RL_CHAR_LOOP
-
-RL_CHECK_EOF:
-    bnez    $t5, READ_LINE_EOF # If first character is EOF, exit cleanly
-    j       RL_EOF_OR_NL
-
-RL_EOF_OR_NL:
-    sb      $zero, 0($t0)   # Null-terminate the string
-    
-    # Post-process: convert lowercase to uppercase
-    la      $t0, MEM_INPUT_BUF
-    
+    # Post-process: remove newline (\n or \r) and convert to uppercase
 READ_LINE_LOOP:
-    lb      $t1, 0($t0)
+    lbu     $t1, 0($t0)
     beqz    $t1, READ_LINE_DONE
-    
+
+    # If it is newline (\n, ASCII 10), replace with \0 and terminate
+    li      $t2, 10
+    beq     $t1, $t2, RL_TRUNCATE
+
+    # If it is carriage return (\r, ASCII 13), replace with \0 and terminate
+    li      $t2, 13
+    beq     $t1, $t2, RL_TRUNCATE
+
     # Check if char is 'a'-'z' (97 to 122)
     li      $v0, 97
     slt     $a1, $t1, $v0
@@ -184,20 +163,27 @@ READ_LINE_LOOP:
     li      $v0, 122
     slt     $a1, $v0, $t1
     bne     $a1, $zero, READ_LINE_NEXT
-    
+
     # Convert to uppercase
     addiu   $t1, $t1, -32
     sb      $t1, 0($t0)
-    
+
 READ_LINE_NEXT:
     addiu   $t0, $t0, 1
     j       READ_LINE_LOOP
 
+RL_TRUNCATE:
+    sb      $zero, 0($t0)
+
 READ_LINE_DONE:
+    lw      $ra, 0($sp)
+    addiu   $sp, $sp, 4
     jr      $ra
 
 READ_LINE_EOF:
-    li      $v0, 10         # Exit syscall if EOF is encountered
+    lw      $ra, 0($sp)
+    addiu   $sp, $sp, 4
+    li      $v0, 10             # Exit syscall if EOF
     syscall
 
 # -----------------------------------------------------------------------

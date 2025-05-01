@@ -1,4 +1,4 @@
-# defs.asm - Memory map and constants for PBasic MIPS
+# defs.inc - Memory map and constants for PBasic MIPS
 # -----------------------------------------------------------------------
 # MIPS architecture utilizes standard MARS memory segments.
 # Variables are stored as 32-bit words for native MIPS performance, 
