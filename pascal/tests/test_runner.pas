@@ -599,6 +599,36 @@ begin
   end;
 end;
 
+procedure TestProgramStoreListingAndMemory;
+var
+  Prog: TProgram;
+  Listing: string;
+  ExpectedSize: LongInt;
+begin
+  writeln('=== RUN TestProgramStoreListingAndMemory');
+
+  Prog := TProgram.Create;
+  try
+    // Empty program listing and size
+    AssertEquals('', Prog.ListLines, 'TestProgramStoreListingAndMemory/empty_list');
+    AssertTrue(Prog.ByteSize = 0, 'TestProgramStoreListingAndMemory/empty_bytesize_zero');
+
+    // Add lines 20 and 10
+    Prog.SetLine(20, Tokenize('PRINT "WORLD"'), '20 PRINT "WORLD"');
+    Prog.SetLine(10, Tokenize('PRINT "HELLO"'), '10 PRINT "HELLO"');
+
+    // Formatted listing should be sorted
+    Listing := Prog.ListLines;
+    AssertEquals('10 PRINT "HELLO"' + #10 + '20 PRINT "WORLD"' + #10, Listing, 'TestProgramStoreListingAndMemory/sorted_listing');
+
+    // Memory calculation:
+    ExpectedSize := (4 + Length('PRINT "HELLO"') + 1) + (4 + Length('PRINT "WORLD"') + 1);
+    AssertTrue(Prog.ByteSize = ExpectedSize, 'TestProgramStoreListingAndMemory/bytesize_36');
+  finally
+    Prog.Free;
+  end;
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -616,6 +646,7 @@ begin
   TestProgramStoreInsertionAndReplacement;
   TestProgramStoreLineDeletion;
   TestProgramStoreTraversal;
+  TestProgramStoreListingAndMemory;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
