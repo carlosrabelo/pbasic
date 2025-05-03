@@ -12,6 +12,10 @@ type
     constructor Create;
     procedure Clear;
     function Count: Integer;
+    function Get(Name: Char): LongInt;
+    procedure SetVal(Name: Char; Value: LongInt);
+    function GetVar(Name: Char): LongInt;
+    procedure SetVar(Name: Char; Value: LongInt);
   end;
 
 implementation
@@ -33,6 +37,36 @@ end;
 function TVariableStore.Count: Integer;
 begin
   Result := 26;
+end;
+
+function TVariableStore.Get(Name: Char): LongInt;
+var
+  C: Char;
+begin
+  C := UpCase(Name);
+  if C in ['A'..'Z'] then
+    Result := FVars[C]
+  else
+    Result := 0;
+end;
+
+procedure TVariableStore.SetVal(Name: Char; Value: LongInt);
+var
+  C: Char;
+begin
+  C := UpCase(Name);
+  if C in ['A'..'Z'] then
+    FVars[C] := Value;
+end;
+
+function TVariableStore.GetVar(Name: Char): LongInt;
+begin
+  Result := Get(Name);
+end;
+
+procedure TVariableStore.SetVar(Name: Char; Value: LongInt);
+begin
+  SetVal(Name, Value);
 end;
 
 end.
