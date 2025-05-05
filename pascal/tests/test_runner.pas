@@ -699,6 +699,45 @@ begin
   AssertTrue(Neg32(-15) = 15, 'TestMul16AndArithmetic/neg32_neg');
 end;
 
+procedure TestDiv16AndMod16;
+var
+  Seed, R1, R2: Word;
+begin
+  writeln('=== RUN TestDiv16AndMod16');
+
+  // Div16 standard division
+  AssertTrue(Div16(100, 10) = 10, 'TestDiv16AndMod16/div_simple');
+  AssertTrue(Div16(7, 2) = 3, 'TestDiv16AndMod16/div_trunc');
+  AssertTrue(Div16(0, 5) = 0, 'TestDiv16AndMod16/div_zero_num');
+  AssertTrue(Div16(65535, 1) = 65535, 'TestDiv16AndMod16/div_maxword');
+
+  // Div16 zero-divisor guards -> 65535 ($FFFF)
+  AssertTrue(Div16(1234, 0) = $FFFF, 'TestDiv16AndMod16/div_zero_guard_1234');
+  AssertTrue(Div16(0, 0) = $FFFF, 'TestDiv16AndMod16/div_zero_guard_0');
+
+  // Mod16 standard modulo
+  AssertTrue(Mod16(100, 10) = 0, 'TestDiv16AndMod16/mod_even');
+  AssertTrue(Mod16(7, 2) = 1, 'TestDiv16AndMod16/mod_remainder');
+  AssertTrue(Mod16(0, 5) = 0, 'TestDiv16AndMod16/mod_zero_num');
+  AssertTrue(Mod16(65535, 10) = 5, 'TestDiv16AndMod16/mod_maxword');
+
+  // Mod16 zero-divisor guards -> preserves dividend
+  AssertTrue(Mod16(1234, 0) = 1234, 'TestDiv16AndMod16/mod_zero_guard_1234');
+  AssertTrue(Mod16(0, 0) = 0, 'TestDiv16AndMod16/mod_zero_guard_0');
+
+  // Abs32
+  AssertTrue(Abs32(42) = 42, 'TestDiv16AndMod16/abs_pos');
+  AssertTrue(Abs32(-42) = 42, 'TestDiv16AndMod16/abs_neg');
+  AssertTrue(Abs32(0) = 0, 'TestDiv16AndMod16/abs_zero');
+
+  // NextRND LCG
+  Seed := 1;
+  R1 := NextRND(Seed);
+  R2 := NextRND(Seed);
+  AssertTrue(R1 <> R2, 'TestDiv16AndMod16/rnd_distinct');
+  AssertTrue(R1 = ((1 * 25173 + 13849) and $FFFF), 'TestDiv16AndMod16/rnd_first_value');
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -720,6 +759,7 @@ begin
   TestVariableStoreContainer;
   TestVariableGetSetOperations;
   TestMul16AndArithmetic;
+  TestDiv16AndMod16;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
