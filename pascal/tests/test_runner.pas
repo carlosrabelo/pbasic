@@ -862,6 +862,56 @@ begin
   Vars.Free;
 end;
 
+procedure TestAdditiveExpressionParser;
+var
+  Vars: TVariableStore;
+  Toks: TTokenArray;
+  Eval: TEvaluator;
+begin
+  writeln('=== RUN TestAdditiveExpressionParser');
+  Vars := TVariableStore.Create;
+  Vars.SetVar('A', 5);
+  Vars.SetVar('B', 10);
+
+  // Precedence: 2 + 3 * 4 = 14
+  Toks := Tokenize('2 + 3 * 4');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(Eval.EvalExpression = 14, 'TestAdditiveExpressionParser/precedence');
+  Eval.Free;
+
+  // Parentheses overriding precedence: (2 + 3) * 4 = 20
+  Toks := Tokenize('(2 + 3) * 4');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(Eval.EvalExpression = 20, 'TestAdditiveExpressionParser/parentheses');
+  Eval.Free;
+
+  // Chained additions and subtractions: 100 - 20 - 5 + 10 = 85
+  Toks := Tokenize('100 - 20 - 5 + 10');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(Eval.EvalExpression = 85, 'TestAdditiveExpressionParser/chained_add_sub');
+  Eval.Free;
+
+  // Variables with arithmetic: A + B * 2 = 25
+  Toks := Tokenize('A + B * 2');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(Eval.EvalExpression = 25, 'TestAdditiveExpressionParser/vars_arithmetic');
+  Eval.Free;
+
+  // Complex nested expression: (10 - 2) * (3 + 1) / 2 = 16
+  Toks := Tokenize('(10 - 2) * (3 + 1) / 2');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(Eval.EvalExpression = 16, 'TestAdditiveExpressionParser/nested_complex');
+  Eval.Free;
+
+  // Unary minus with additive expression: -5 + 10 = 5
+  Toks := Tokenize('-5 + 10');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(Eval.EvalExpression = 5, 'TestAdditiveExpressionParser/unary_minus_expr');
+  Eval.Free;
+
+  Vars.Free;
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -886,6 +936,7 @@ begin
   TestDiv16AndMod16;
   TestExpressionFactorParser;
   TestExpressionTermParser;
+  TestAdditiveExpressionParser;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
