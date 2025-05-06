@@ -808,6 +808,60 @@ begin
   Prog.Free;
 end;
 
+procedure TestExpressionTermParser;
+var
+  Vars: TVariableStore;
+  Toks: TTokenArray;
+  Eval: TEvaluator;
+begin
+  writeln('=== RUN TestExpressionTermParser');
+  Vars := TVariableStore.Create;
+  Vars.SetVar('A', 10);
+
+  // Simple multiplication
+  Toks := Tokenize('6 * 7');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(Eval.EvalTerm = 42, 'TestExpressionTermParser/mul_simple');
+  Eval.Free;
+
+  // Simple division
+  Toks := Tokenize('100 / 5');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(Eval.EvalTerm = 20, 'TestExpressionTermParser/div_simple');
+  Eval.Free;
+
+  // Chained terms
+  Toks := Tokenize('2 * 3 * 4');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(Eval.EvalTerm = 24, 'TestExpressionTermParser/chained_mul');
+  Eval.Free;
+
+  Toks := Tokenize('100 / 2 / 5');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(Eval.EvalTerm = 10, 'TestExpressionTermParser/chained_div');
+  Eval.Free;
+
+  // Variable in term
+  Toks := Tokenize('A * 3');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(Eval.EvalTerm = 30, 'TestExpressionTermParser/var_mul');
+  Eval.Free;
+
+  // Division by zero safe guard
+  Toks := Tokenize('10 / 0');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(Eval.EvalTerm = $FFFF, 'TestExpressionTermParser/div_by_zero');
+  Eval.Free;
+
+  // Truncation past 16 bits
+  Toks := Tokenize('1000 * 1000');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(Eval.EvalTerm = (1000000 and $FFFF), 'TestExpressionTermParser/overflow_trunc');
+  Eval.Free;
+
+  Vars.Free;
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -831,6 +885,7 @@ begin
   TestMul16AndArithmetic;
   TestDiv16AndMod16;
   TestExpressionFactorParser;
+  TestExpressionTermParser;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
