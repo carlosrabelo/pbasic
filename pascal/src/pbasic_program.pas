@@ -36,6 +36,8 @@ type
     function ByteSize: LongInt;
   end;
 
+  TProgramStore = TProgram;
+
 implementation
 
 uses
