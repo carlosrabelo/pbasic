@@ -912,6 +912,114 @@ begin
   Vars.Free;
 end;
 
+procedure TestRelationalExpressionEvaluator;
+var
+  Vars: TVariableStore;
+  Toks: TTokenArray;
+  Eval: TEvaluator;
+begin
+  writeln('=== RUN TestRelationalExpressionEvaluator');
+  Vars := TVariableStore.Create;
+  Vars.SetVar('X', 5);
+  Vars.SetVar('Y', 10);
+
+  // Equal
+  Toks := Tokenize('10 = 10');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(Eval.EvalCondition, 'TestRelationalExpressionEvaluator/eq_true');
+  Eval.Free;
+
+  Toks := Tokenize('10 = 20');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(not Eval.EvalCondition, 'TestRelationalExpressionEvaluator/eq_false');
+  Eval.Free;
+
+  // Not Equal
+  Toks := Tokenize('10 <> 20');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(Eval.EvalCondition, 'TestRelationalExpressionEvaluator/neq_true');
+  Eval.Free;
+
+  Toks := Tokenize('10 <> 10');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(not Eval.EvalCondition, 'TestRelationalExpressionEvaluator/neq_false');
+  Eval.Free;
+
+  // Less Than
+  Toks := Tokenize('5 < 10');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(Eval.EvalCondition, 'TestRelationalExpressionEvaluator/lt_true');
+  Eval.Free;
+
+  Toks := Tokenize('10 < 5');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(not Eval.EvalCondition, 'TestRelationalExpressionEvaluator/lt_false');
+  Eval.Free;
+
+  // Less or Equal
+  Toks := Tokenize('5 <= 5');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(Eval.EvalCondition, 'TestRelationalExpressionEvaluator/lteq_equal');
+  Eval.Free;
+
+  Toks := Tokenize('6 <= 5');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(not Eval.EvalCondition, 'TestRelationalExpressionEvaluator/lteq_false');
+  Eval.Free;
+
+  // Greater Than
+  Toks := Tokenize('10 > 5');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(Eval.EvalCondition, 'TestRelationalExpressionEvaluator/gt_true');
+  Eval.Free;
+
+  Toks := Tokenize('5 > 10');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(not Eval.EvalCondition, 'TestRelationalExpressionEvaluator/gt_false');
+  Eval.Free;
+
+  // Greater or Equal
+  Toks := Tokenize('5 >= 5');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(Eval.EvalCondition, 'TestRelationalExpressionEvaluator/gteq_equal');
+  Eval.Free;
+
+  Toks := Tokenize('4 >= 5');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(not Eval.EvalCondition, 'TestRelationalExpressionEvaluator/gteq_false');
+  Eval.Free;
+
+  // Truthiness without relational operator
+  Toks := Tokenize('42');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(Eval.EvalCondition, 'TestRelationalExpressionEvaluator/truthy_pos');
+  Eval.Free;
+
+  Toks := Tokenize('0');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(not Eval.EvalCondition, 'TestRelationalExpressionEvaluator/truthy_zero');
+  Eval.Free;
+
+  // Relational comparisons with arithmetic
+  Toks := Tokenize('2 + 3 = 5');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(Eval.EvalCondition, 'TestRelationalExpressionEvaluator/expr_arith_eq');
+  Eval.Free;
+
+  Toks := Tokenize('(10 * 2) > (5 + 3)');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(Eval.EvalCondition, 'TestRelationalExpressionEvaluator/expr_arith_gt');
+  Eval.Free;
+
+  // Variables in comparison
+  Toks := Tokenize('X < Y');
+  Eval := TEvaluator.Create(Toks, Vars);
+  AssertTrue(Eval.EvalCondition, 'TestRelationalExpressionEvaluator/vars_lt');
+  Eval.Free;
+
+  Vars.Free;
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -937,6 +1045,7 @@ begin
   TestExpressionFactorParser;
   TestExpressionTermParser;
   TestAdditiveExpressionParser;
+  TestRelationalExpressionEvaluator;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
