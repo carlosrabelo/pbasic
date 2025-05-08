@@ -31,6 +31,7 @@ type
     FOutputBuffer: string;
 
     procedure SyntaxError;
+    function ExecPrint(const Tokens: TTokenArray; var Cursor: Integer): TExecResult;
   public
     constructor Create(AProg: TProgramStore = nil; AVars: TVariableStore = nil; ARandSeed: Word = 12345);
     destructor Destroy; override;
@@ -108,6 +109,56 @@ begin
   PrintLn('?SYNTAX ERROR');
 end;
 
+function TInterpreter.ExecPrint(const Tokens: TTokenArray; var Cursor: Integer): TExecResult;
+var
+  TrailingSemicolon: Boolean;
+  Tok: TToken;
+  Eval: TEvaluator;
+  Val: LongInt;
+begin
+  TrailingSemicolon := False;
+
+  while Cursor < Length(Tokens) do
+  begin
+    Tok := Tokens[Cursor];
+    if (Tok.TokenType = ttEOL) or (Tok.TokenType = ttEOF) then
+      Break;
+
+    if Tok.TokenType = ttString then
+    begin
+      PrintStr(Tok.Literal);
+      Inc(Cursor);
+      TrailingSemicolon := False;
+    end
+    else if Tok.TokenType = ttComma then
+    begin
+      PrintStr('        ');
+      Inc(Cursor);
+      TrailingSemicolon := False;
+    end
+    else if Tok.TokenType = ttSemicolon then
+    begin
+      Inc(Cursor);
+      TrailingSemicolon := True;
+    end
+    else
+    begin
+      Eval := TEvaluator.Create(Tokens, FVars, FProg, @FRandSeed);
+      Eval.SetCursor(Cursor);
+      Val := Eval.EvalExpression();
+      Cursor := Eval.GetCursor();
+      Eval.Free;
+      PrintNum(Val);
+      TrailingSemicolon := False;
+    end;
+  end;
+
+  if not TrailingSemicolon then
+    PrintLn();
+
+  Result := erOk;
+end;
+
 function TInterpreter.ExecuteStatement(const Tokens: TTokenArray): TExecResult;
 var
   Cursor: Integer;
@@ -126,7 +177,13 @@ begin
     ttRem:
       Exit(erOk);
 
-    ttPrint, ttLet, ttIdent, ttNew, ttFree, ttList, ttRun,
+    ttPrint:
+    begin
+      Inc(Cursor);
+      Exit(ExecPrint(Tokens, Cursor));
+    end;
+
+    ttLet, ttIdent, ttNew, ttFree, ttList, ttRun,
     ttGoto, ttGosub, ttReturn, ttIf, ttEnd, ttExit, ttInput:
       Exit(erOk);
 
