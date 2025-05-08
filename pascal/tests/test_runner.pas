@@ -3,7 +3,7 @@ program test_runner;
 {$mode objfpc}{$H+}
 
 uses
-  SysUtils, Classes, Process, pbasic_repl, pbasic_signals, pbasic_token, pbasic_lexer, pbasic_program, pbasic_env, pbasic_evaluator;
+  SysUtils, Classes, Process, pbasic_repl, pbasic_signals, pbasic_token, pbasic_lexer, pbasic_program, pbasic_env, pbasic_evaluator, pbasic_interpreter;
 
 var
   TotalTests: Integer = 0;
@@ -1020,6 +1020,53 @@ begin
   Vars.Free;
 end;
 
+procedure TestStatementDispatcherSkeleton;
+var
+  Interp: TInterpreter;
+  Prog: TProgramStore;
+  Vars: TVariableStore;
+  Toks: TTokenArray;
+  Res: TExecResult;
+begin
+  writeln('=== RUN TestStatementDispatcherSkeleton');
+  Prog := TProgramStore.Create;
+  Vars := TVariableStore.Create;
+  Interp := TInterpreter.Create(Prog, Vars);
+  Interp.CaptureOutput := True;
+
+  // Empty tokens
+  SetLength(Toks, 0);
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erOk, 'TestStatementDispatcherSkeleton/empty_tokens');
+
+  // EOL token
+  SetLength(Toks, 1);
+  Toks[0] := CreateToken(ttEOL);
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erOk, 'TestStatementDispatcherSkeleton/eol_token');
+
+  // REM token
+  Toks[0] := CreateToken(ttRem, 'A COMMENT');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erOk, 'TestStatementDispatcherSkeleton/rem_token');
+
+  // Known command tokens dispatched successfully
+  Toks[0] := CreateToken(ttPrint);
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erOk, 'TestStatementDispatcherSkeleton/known_cmd_print');
+
+  // Unrecognized / syntax error
+  Interp.ClearOutputBuffer;
+  Toks[0] := CreateToken(ttIllegal, '@');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erSyntaxError, 'TestStatementDispatcherSkeleton/syntax_error_code');
+  AssertContains('?SYNTAX ERROR', Interp.OutputBuffer, 'TestStatementDispatcherSkeleton/syntax_error_output');
+
+  Interp.Free;
+  Prog.Free;
+  Vars.Free;
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -1046,6 +1093,7 @@ begin
   TestExpressionTermParser;
   TestAdditiveExpressionParser;
   TestRelationalExpressionEvaluator;
+  TestStatementDispatcherSkeleton;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
