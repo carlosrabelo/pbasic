@@ -33,6 +33,8 @@ type
     procedure SyntaxError;
     function ExecPrint(const Tokens: TTokenArray; var Cursor: Integer): TExecResult;
     function ExecLet(const Tokens: TTokenArray; var Cursor: Integer): TExecResult;
+    function ExecNew: TExecResult;
+    function ExecFree: TExecResult;
   public
     constructor Create(AProg: TProgramStore = nil; AVars: TVariableStore = nil; ARandSeed: Word = 12345);
     destructor Destroy; override;
@@ -194,6 +196,32 @@ begin
   Result := erOk;
 end;
 
+function TInterpreter.ExecNew: TExecResult;
+begin
+  if FProg <> nil then
+    FProg.Clear;
+  if FVars <> nil then
+    FVars.Clear;
+  PrintLn('OK');
+  Result := erOk;
+end;
+
+function TInterpreter.ExecFree: TExecResult;
+var
+  ByteSize, FreeBytes: LongInt;
+begin
+  ByteSize := 0;
+  if FProg <> nil then
+    ByteSize := FProg.ByteSize;
+  if 16384 >= ByteSize then
+    FreeBytes := 16384 - ByteSize
+  else
+    FreeBytes := 0;
+  PrintNum(FreeBytes);
+  PrintLn();
+  Result := erOk;
+end;
+
 function TInterpreter.ExecuteStatement(const Tokens: TTokenArray): TExecResult;
 var
   Cursor: Integer;
@@ -229,7 +257,13 @@ begin
       Exit(ExecLet(Tokens, Cursor));
     end;
 
-    ttNew, ttFree, ttList, ttRun,
+    ttNew:
+      Exit(ExecNew());
+
+    ttFree:
+      Exit(ExecFree());
+
+    ttList, ttRun,
     ttGoto, ttGosub, ttReturn, ttIf, ttEnd, ttExit, ttInput:
       Exit(erOk);
 
