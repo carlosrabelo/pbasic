@@ -6,6 +6,7 @@ interface
 
 uses
   SysUtils,
+  pbasic_signals,
   pbasic_token,
   pbasic_program,
   pbasic_env,
@@ -27,6 +28,9 @@ type
     FHalted: Boolean;
     FExitRequested: Boolean;
     FIsRunning: Boolean;
+    FCurrentLineNo: Word;
+    FBranchTarget: Word;
+    FBranchTaken: Boolean;
     FCaptureOutput: Boolean;
     FOutputBuffer: string;
 
@@ -35,6 +39,7 @@ type
     function ExecLet(const Tokens: TTokenArray; var Cursor: Integer): TExecResult;
     function ExecNew: TExecResult;
     function ExecFree: TExecResult;
+    function ExecList: TExecResult;
   public
     constructor Create(AProg: TProgramStore = nil; AVars: TVariableStore = nil; ARandSeed: Word = 12345);
     destructor Destroy; override;
@@ -45,6 +50,7 @@ type
     procedure ClearOutputBuffer;
 
     function ExecuteStatement(const Tokens: TTokenArray): TExecResult;
+    function RunProgram: TExecResult;
 
     property Prog: TProgramStore read FProg write FProg;
     property Vars: TVariableStore read FVars write FVars;
@@ -68,6 +74,9 @@ begin
   else
     FRandSeed := ARandSeed;
   SetLength(FGosubStack, 0);
+  FCurrentLineNo := 0;
+  FBranchTarget := 0;
+  FBranchTaken := False;
   FHalted := False;
   FExitRequested := False;
   FIsRunning := False;
@@ -222,6 +231,71 @@ begin
   Result := erOk;
 end;
 
+function TInterpreter.ExecList: TExecResult;
+begin
+  if FProg <> nil then
+    PrintStr(FProg.ListLines);
+  Result := erOk;
+end;
+
+function TInterpreter.RunProgram: TExecResult;
+var
+  CurLineNo: Word;
+  HasLine: Boolean;
+  LineTokens: TTokenArray;
+  Raw: string;
+  Res: TExecResult;
+begin
+  if (FProg = nil) or FProg.Empty then
+  begin
+    PrintLn('?NO PROGRAM');
+    Exit(erOk);
+  end;
+
+  SetLength(FGosubStack, 0);
+  FHalted := False;
+  FIsRunning := True;
+
+  HasLine := FProg.GetFirstLine(CurLineNo);
+
+  while HasLine and (not FHalted) and (not FExitRequested) do
+  begin
+    if CheckAndResetInterrupted then
+    begin
+      FHalted := True;
+      PrintLn();
+      Break;
+    end;
+
+    FCurrentLineNo := CurLineNo;
+    FBranchTaken := False;
+
+    FProg.GetLine(CurLineNo, LineTokens, Raw);
+    Res := ExecuteStatement(LineTokens);
+    if Res = erSyntaxError then
+    begin
+      FIsRunning := False;
+      Exit(Res);
+    end;
+
+    if FHalted or FExitRequested then
+      Break;
+
+    if FBranchTaken then
+    begin
+      CurLineNo := FBranchTarget;
+      HasLine := FProg.HasLine(CurLineNo);
+    end
+    else
+    begin
+      HasLine := FProg.GetNextLine(FCurrentLineNo, CurLineNo);
+    end;
+  end;
+
+  FIsRunning := False;
+  Result := erOk;
+end;
+
 function TInterpreter.ExecuteStatement(const Tokens: TTokenArray): TExecResult;
 var
   Cursor: Integer;
@@ -263,7 +337,12 @@ begin
     ttFree:
       Exit(ExecFree());
 
-    ttList, ttRun,
+    ttRun:
+      Exit(RunProgram());
+
+    ttList:
+      Exit(ExecList());
+
     ttGoto, ttGosub, ttReturn, ttIf, ttEnd, ttExit, ttInput:
       Exit(erOk);
 
