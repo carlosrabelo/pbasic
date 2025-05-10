@@ -1287,6 +1287,48 @@ begin
   Vars.Free;
 end;
 
+procedure TestExecGotoBranching;
+var
+  Interp: TInterpreter;
+  Prog: TProgramStore;
+  Vars: TVariableStore;
+  Toks: TTokenArray;
+  Res: TExecResult;
+  ExpectedNewline: string;
+begin
+  writeln('=== RUN TestExecGotoBranching');
+  ExpectedNewline := LineEnding;
+  Prog := TProgramStore.Create;
+  Vars := TVariableStore.Create;
+  Interp := TInterpreter.Create(Prog, Vars);
+  Interp.CaptureOutput := True;
+
+  // Unconditional jump forward skipping line 20
+  Prog.SetLine(10, Tokenize('GOTO 30'), '10 GOTO 30');
+  Prog.SetLine(20, Tokenize('PRINT "SKIPPED"'), '20 PRINT "SKIPPED"');
+  Prog.SetLine(30, Tokenize('PRINT "TARGET"'), '30 PRINT "TARGET"');
+
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('RUN');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erOk, 'TestExecGotoBranching/forward_goto_ok');
+  AssertTrue(Interp.OutputBuffer = 'TARGET' + ExpectedNewline, 'TestExecGotoBranching/forward_goto_output');
+
+  // GOTO non-existent line produces syntax error and halts
+  Prog.Clear;
+  Prog.SetLine(10, Tokenize('GOTO 999'), '10 GOTO 999');
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('RUN');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erSyntaxError, 'TestExecGotoBranching/invalid_target_error');
+  AssertContains('?SYNTAX ERROR', Interp.OutputBuffer, 'TestExecGotoBranching/invalid_target_msg');
+  AssertTrue(Interp.Halted, 'TestExecGotoBranching/invalid_target_halted');
+
+  Interp.Free;
+  Prog.Free;
+  Vars.Free;
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -1318,6 +1360,7 @@ begin
   TestExecLetStatements;
   TestExecNewRemFree;
   TestRunExecutionLoop;
+  TestExecGotoBranching;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
