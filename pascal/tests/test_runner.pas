@@ -1451,6 +1451,48 @@ begin
   Vars.Free;
 end;
 
+procedure TestExecEndAndExit;
+var
+  Interp: TInterpreter;
+  Prog: TProgramStore;
+  Vars: TVariableStore;
+  Toks: TTokenArray;
+  Res: TExecResult;
+  ExpectedNewline: string;
+begin
+  writeln('=== RUN TestExecEndAndExit');
+  ExpectedNewline := LineEnding;
+  Prog := TProgramStore.Create;
+  Vars := TVariableStore.Create;
+  Interp := TInterpreter.Create(Prog, Vars);
+  Interp.CaptureOutput := True;
+
+  // END stops execution
+  Prog.SetLine(10, Tokenize('PRINT "BEFORE"'), '10 PRINT "BEFORE"');
+  Prog.SetLine(20, Tokenize('END'), '20 END');
+  Prog.SetLine(30, Tokenize('PRINT "AFTER"'), '30 PRINT "AFTER"');
+
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('RUN');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erOk, 'TestExecEndAndExit/end_stmt_ok');
+  AssertTrue(Interp.OutputBuffer = 'BEFORE' + ExpectedNewline, 'TestExecEndAndExit/end_stmt_output');
+  AssertTrue(Interp.Halted, 'TestExecEndAndExit/end_stmt_halted');
+  AssertTrue(not Interp.ExitRequested, 'TestExecEndAndExit/end_stmt_not_exit_requested');
+
+  // EXIT command requests process termination
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('EXIT');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erStop, 'TestExecEndAndExit/exit_cmd_stop');
+  AssertTrue(Interp.ExitRequested, 'TestExecEndAndExit/exit_cmd_requested');
+  AssertTrue(Interp.Halted, 'TestExecEndAndExit/exit_cmd_halted');
+
+  Interp.Free;
+  Prog.Free;
+  Vars.Free;
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -1485,6 +1527,7 @@ begin
   TestExecGotoBranching;
   TestExecGosubReturn;
   TestExecIfThenBranching;
+  TestExecEndAndExit;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
