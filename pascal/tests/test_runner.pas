@@ -1391,6 +1391,66 @@ begin
   Vars.Free;
 end;
 
+procedure TestExecIfThenBranching;
+var
+  Interp: TInterpreter;
+  Prog: TProgramStore;
+  Vars: TVariableStore;
+  Toks: TTokenArray;
+  Res: TExecResult;
+  ExpectedNewline: string;
+begin
+  writeln('=== RUN TestExecIfThenBranching');
+  ExpectedNewline := LineEnding;
+  Prog := TProgramStore.Create;
+  Vars := TVariableStore.Create;
+  Interp := TInterpreter.Create(Prog, Vars);
+  Interp.CaptureOutput := True;
+
+  // IF condition true jump to line number
+  Prog.SetLine(10, Tokenize('IF 10 > 5 THEN 30'), '10 IF 10 > 5 THEN 30');
+  Prog.SetLine(20, Tokenize('PRINT "NOT TAKEN"'), '20 PRINT "NOT TAKEN"');
+  Prog.SetLine(30, Tokenize('PRINT "TAKEN"'), '30 PRINT "TAKEN"');
+
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('RUN');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erOk, 'TestExecIfThenBranching/if_true_goto_ok');
+  AssertTrue(Interp.OutputBuffer = 'TAKEN' + ExpectedNewline, 'TestExecIfThenBranching/if_true_goto_output');
+
+  // IF condition false does not jump
+  Prog.Clear;
+  Prog.SetLine(10, Tokenize('IF 5 > 10 THEN 30'), '10 IF 5 > 10 THEN 30');
+  Prog.SetLine(20, Tokenize('PRINT "NOT TAKEN"'), '20 PRINT "NOT TAKEN"');
+  Prog.SetLine(30, Tokenize('PRINT "TAKEN"'), '30 PRINT "TAKEN"');
+
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('RUN');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erOk, 'TestExecIfThenBranching/if_false_ok');
+  AssertTrue(Interp.OutputBuffer = 'NOT TAKEN' + ExpectedNewline + 'TAKEN' + ExpectedNewline, 'TestExecIfThenBranching/if_false_output');
+
+  // IF condition true executes statement
+  Prog.Clear;
+  Prog.SetLine(10, Tokenize('IF 1 = 1 THEN PRINT "EQUAL"'), '10 IF 1 = 1 THEN PRINT "EQUAL"');
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('RUN');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erOk, 'TestExecIfThenBranching/if_stmt_ok');
+  AssertTrue(Interp.OutputBuffer = 'EQUAL' + ExpectedNewline, 'TestExecIfThenBranching/if_stmt_output');
+
+  // IF syntax error: missing THEN
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('IF 10 > 5 PRINT 1');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erSyntaxError, 'TestExecIfThenBranching/missing_then_error');
+  AssertContains('?SYNTAX ERROR', Interp.OutputBuffer, 'TestExecIfThenBranching/missing_then_msg');
+
+  Interp.Free;
+  Prog.Free;
+  Vars.Free;
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -1424,6 +1484,7 @@ begin
   TestRunExecutionLoop;
   TestExecGotoBranching;
   TestExecGosubReturn;
+  TestExecIfThenBranching;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
