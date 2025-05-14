@@ -1605,6 +1605,58 @@ begin
   Interp.Free;
 end;
 
+procedure TestABSFunction;
+var
+  Toks: TTokenArray;
+  Ev: TEvaluator;
+  Vars: TVariableStore;
+  Interp: TInterpreter;
+  ExpectedNewline: string;
+begin
+  writeln('=== RUN TestABSFunction');
+  ExpectedNewline := LineEnding;
+
+  // 1. Direct Abs32 helper
+  AssertTrue(Abs32(-15) = 15, 'TestABSFunction/abs32_neg');
+  AssertTrue(Abs32(15) = 15, 'TestABSFunction/abs32_pos');
+  AssertTrue(Abs32(0) = 0, 'TestABSFunction/abs32_zero');
+  AssertTrue(Abs32(-1000000) = 1000000, 'TestABSFunction/abs32_large_neg');
+
+  // 2. Evaluator ABS(expr)
+  Toks := Tokenize('ABS(-42)');
+  Ev := TEvaluator.Create(Toks);
+  AssertTrue(Ev.EvalExpression() = 42, 'TestABSFunction/eval_abs_neg');
+  Ev.Free;
+
+  Toks := Tokenize('ABS(42)');
+  Ev := TEvaluator.Create(Toks);
+  AssertTrue(Ev.EvalExpression() = 42, 'TestABSFunction/eval_abs_pos');
+  Ev.Free;
+
+  Toks := Tokenize('ABS(0)');
+  Ev := TEvaluator.Create(Toks);
+  AssertTrue(Ev.EvalExpression() = 0, 'TestABSFunction/eval_abs_zero');
+  Ev.Free;
+
+  // 3. Evaluator with variables: ABS(A - B)
+  Vars := TVariableStore.Create;
+  Vars.SetVar('A', 10);
+  Vars.SetVar('B', 25);
+  Toks := Tokenize('ABS(A - B)');
+  Ev := TEvaluator.Create(Toks, Vars);
+  AssertTrue(Ev.EvalExpression() = 15, 'TestABSFunction/eval_abs_vars');
+  Ev.Free;
+  Vars.Free;
+
+  // 4. Interpreter PRINT ABS(-100)
+  Interp := TInterpreter.Create;
+  Interp.CaptureOutput := True;
+  Toks := Tokenize('PRINT ABS(-100)');
+  Interp.ExecuteStatement(Toks);
+  AssertTrue(Interp.OutputBuffer = '100' + ExpectedNewline, 'TestABSFunction/interp_print_abs');
+  Interp.Free;
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -1642,6 +1694,7 @@ begin
   TestExecEndAndExit;
   TestExecInputStatement;
   TestPRNGAndRND;
+  TestABSFunction;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
