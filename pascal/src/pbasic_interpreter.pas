@@ -25,6 +25,7 @@ type
     FVars: TVariableStore;
     FRandSeed: Word;
     FGosubStack: array of Word;
+    FInputQueue: array of string;
     FHalted: Boolean;
     FExitRequested: Boolean;
     FIsRunning: Boolean;
@@ -46,6 +47,7 @@ type
     function ExecIf(const Tokens: TTokenArray; var Cursor: Integer): TExecResult;
     function ExecEnd: TExecResult;
     function ExecExit: TExecResult;
+    function ExecInput(const Tokens: TTokenArray; var Cursor: Integer): TExecResult;
   public
     constructor Create(AProg: TProgramStore = nil; AVars: TVariableStore = nil; ARandSeed: Word = 12345);
     destructor Destroy; override;
@@ -54,6 +56,9 @@ type
     procedure PrintLn(const S: string = '');
     procedure PrintNum(Val: LongInt);
     procedure ClearOutputBuffer;
+    procedure QueueInput(const S: string);
+    procedure ClearInputQueue;
+    function ReadInputLine(var S: string): Boolean;
 
     function ExecuteStatement(const Tokens: TTokenArray): TExecResult;
     function RunProgram: TExecResult;
@@ -70,6 +75,9 @@ type
 
 implementation
 
+uses
+  pbasic_repl;
+
 constructor TInterpreter.Create(AProg: TProgramStore; AVars: TVariableStore; ARandSeed: Word);
 begin
   inherited Create;
@@ -80,6 +88,7 @@ begin
   else
     FRandSeed := ARandSeed;
   SetLength(FGosubStack, 0);
+  SetLength(FInputQueue, 0);
   FCurrentLineNo := 0;
   FBranchTarget := 0;
   FBranchTaken := False;
@@ -93,6 +102,7 @@ end;
 destructor TInterpreter.Destroy;
 begin
   SetLength(FGosubStack, 0);
+  SetLength(FInputQueue, 0);
   inherited Destroy;
 end;
 
@@ -120,6 +130,33 @@ end;
 procedure TInterpreter.ClearOutputBuffer;
 begin
   FOutputBuffer := '';
+end;
+
+procedure TInterpreter.QueueInput(const S: string);
+begin
+  SetLength(FInputQueue, Length(FInputQueue) + 1);
+  FInputQueue[High(FInputQueue)] := S;
+end;
+
+procedure TInterpreter.ClearInputQueue;
+begin
+  SetLength(FInputQueue, 0);
+end;
+
+function TInterpreter.ReadInputLine(var S: string): Boolean;
+var
+  I: Integer;
+begin
+  if Length(FInputQueue) > 0 then
+  begin
+    S := FInputQueue[0];
+    for I := 0 to High(FInputQueue) - 1 do
+      FInputQueue[I] := FInputQueue[I + 1];
+    SetLength(FInputQueue, Length(FInputQueue) - 1);
+    Exit(True);
+  end;
+
+  Result := ReadLine(S);
 end;
 
 procedure TInterpreter.SyntaxError;
@@ -431,6 +468,69 @@ begin
   Result := erStop;
 end;
 
+function TInterpreter.ExecInput(const Tokens: TTokenArray; var Cursor: Integer): TExecResult;
+var
+  VarName: Char;
+  Line: string;
+  Trimmed: string;
+  Val: LongInt;
+begin
+  if (Cursor < Length(Tokens)) and (Tokens[Cursor].TokenType = ttString) then
+  begin
+    PrintStr(Tokens[Cursor].Literal);
+    Inc(Cursor);
+    if (Cursor >= Length(Tokens)) or (Tokens[Cursor].TokenType <> ttSemicolon) then
+    begin
+      SyntaxError;
+      Exit(erSyntaxError);
+    end;
+    Inc(Cursor);
+  end
+  else
+  begin
+    PrintStr('? ');
+  end;
+
+  if (Cursor >= Length(Tokens)) or (Tokens[Cursor].TokenType <> ttIdent) or (Tokens[Cursor].VarName = #0) then
+  begin
+    SyntaxError;
+    Exit(erSyntaxError);
+  end;
+
+  VarName := Tokens[Cursor].VarName;
+  Inc(Cursor);
+
+  if CheckAndResetInterrupted() then
+  begin
+    PrintLn;
+    FHalted := True;
+    Exit(erStop);
+  end;
+
+  if not ReadInputLine(Line) then
+  begin
+    FHalted := True;
+    Exit(erStop);
+  end;
+
+  if CheckAndResetInterrupted() then
+  begin
+    PrintLn;
+    FHalted := True;
+    Exit(erStop);
+  end;
+
+  Trimmed := Trim(Line);
+  Val := 0;
+  if Length(Trimmed) > 0 then
+    Val := StrToIntDef(Trimmed, 0);
+
+  if FVars <> nil then
+    FVars.SetVar(VarName, Val);
+
+  Result := erOk;
+end;
+
 function TInterpreter.ExecuteStatement(const Tokens: TTokenArray): TExecResult;
 var
   Cursor: Integer;
@@ -506,7 +606,10 @@ begin
       Exit(ExecExit());
 
     ttInput:
-      Exit(erOk);
+    begin
+      Inc(Cursor);
+      Exit(ExecInput(Tokens, Cursor));
+    end;
 
     else
     begin
