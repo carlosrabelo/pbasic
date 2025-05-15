@@ -17,6 +17,7 @@ Interpretador BASIC de inteiros determinístico implementado em modernas linguag
 
 - **GCC / Clang** — compilador C++20 necessário para o componente C++ (`g++` 11+ ou `clang++` 13+)
 - **Go** — Go 1.24+ necessário para o componente Go
+- **Free Pascal** — Free Pascal 3.2+ (`fpc`) necessário para o componente Pascal
 - **Rust** — Rust 1.70+ (`cargo`) necessário para o componente Rust
 - **Make** — GNU Make 4.0+ para automação de compilação
 
@@ -45,6 +46,9 @@ Inicie o interpretador de qualquer implementação sem argumentos:
 # Go
 ./go/bin/pbasic
 
+# Free Pascal
+./pascal/bin/pbasic
+
 # Rust
 ./rust/bin/pbasic
 ```
@@ -67,6 +71,7 @@ Execute um script demo compartilhado ou qualquer arquivo `.bas` diretamente com 
 # Executar demonstração hello world
 ./cpp/bin/pbasic demos/01_hello.bas
 ./go/bin/pbasic demos/01_hello.bas
+./pascal/bin/pbasic demos/01_hello.bas
 ./rust/bin/pbasic demos/01_hello.bas
 ```
 
@@ -81,6 +86,7 @@ O diretório `demos/` contém programas de exemplo padronizados:
 ```
 cpp/                 # Implementação em C++20 e suíte de testes Catch2
 go/                  # Implementação em Go e suíte de testes
+pascal/              # Implementação em Free Pascal e suíte de testes
 rust/                # Implementação em Rust e suíte de testes
 demos/               # Scripts BASIC de demonstração compartilhados
 Makefile             # Makefile orquestrador raiz
