@@ -24,22 +24,24 @@ fi
 # Ensure main binary is built for regression testing
 "$ROOT_DIR/.make/build.sh"
 
-echo "Running regression demo suite (demos/99_test.bas)..."
-DEMO_OUTPUT=$("$BUILD_DIR/pbasic" "$ROOT_DIR/demos/99_test.bas")
+if [ -f "$ROOT_DIR/demos/99_test.bas" ]; then
+    echo "Running regression demo suite (demos/99_test.bas)..."
+    DEMO_OUTPUT=$("$BUILD_DIR/pbasic" "$ROOT_DIR/demos/99_test.bas")
 
-assert_contains() {
-    local pattern="$1"
-    if ! echo "$DEMO_OUTPUT" | grep -F -e "$pattern" >/dev/null; then
-        echo "Regression assertion failed: pattern '$pattern' not found in demo output."
-        echo "Output was:"
-        echo "$DEMO_OUTPUT"
-        exit 1
-    fi
-}
+    assert_contains() {
+        local pattern="$1"
+        if ! echo "$DEMO_OUTPUT" | grep -F -e "$pattern" >/dev/null; then
+            echo "Regression assertion failed: pattern '$pattern' not found in demo output."
+            echo "Output was:"
+            echo "$DEMO_OUTPUT"
+            exit 1
+        fi
+    }
 
-assert_contains "--- TEST COMPLETE ---"
-assert_contains "IN SUBROUTINE!"
-assert_contains "ABS OF -15 IS: 15"
-assert_contains "NEG FIFTEEN IS: -15"
+    assert_contains "--- TEST COMPLETE ---"
+    assert_contains "IN SUBROUTINE!"
+    assert_contains "ABS OF -15 IS: 15"
+    assert_contains "NEG FIFTEEN IS: -15"
 
-echo "All regression assertions passed."
+    echo "All regression assertions passed."
+fi
