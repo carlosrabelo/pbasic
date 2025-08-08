@@ -86,41 +86,81 @@ std::vector<Token> Tokenizer::tokenize(const std::string& input) {
             continue;
         }
 
+        ch = advance();
+
+        if (ch >= '0' && ch <= '9') {
+            std::string num_str;
+            num_str.push_back(ch);
+            int64_t val = (ch - '0');
+            while (!is_at_end() && peek() >= '0' && peek() <= '9') {
+                char digit = advance();
+                num_str.push_back(digit);
+                val = val * 10 + (digit - '0');
+            }
+            tokens.push_back({TokenType::NUMBER, num_str, static_cast<int32_t>(val), '\0'});
+            continue;
+        }
+
+        if (ch == '"') {
+            std::string str_content;
+            while (!is_at_end() && peek() != '"') {
+                str_content.push_back(advance());
+            }
+            if (!is_at_end() && peek() == '"') {
+                advance();
+            }
+            tokens.push_back({TokenType::STRING, str_content, 0, '\0'});
+            continue;
+        }
+
         switch (ch) {
             case '+':
-                advance();
                 tokens.push_back({TokenType::PLUS, "+", 0, '\0'});
                 break;
             case '-':
-                advance();
                 tokens.push_back({TokenType::MINUS, "-", 0, '\0'});
                 break;
             case '*':
-                advance();
                 tokens.push_back({TokenType::ASTERISK, "*", 0, '\0'});
                 break;
             case '/':
-                advance();
                 tokens.push_back({TokenType::SLASH, "/", 0, '\0'});
                 break;
             case '(':
-                advance();
                 tokens.push_back({TokenType::LPAREN, "(", 0, '\0'});
                 break;
             case ')':
-                advance();
                 tokens.push_back({TokenType::RPAREN, ")", 0, '\0'});
                 break;
             case ',':
-                advance();
                 tokens.push_back({TokenType::COMMA, ",", 0, '\0'});
                 break;
             case ';':
-                advance();
                 tokens.push_back({TokenType::SEMICOLON, ";", 0, '\0'});
                 break;
+            case '=':
+                tokens.push_back({TokenType::EQUAL, "=", 0, '\0'});
+                break;
+            case '<':
+                if (!is_at_end() && peek() == '>') {
+                    advance();
+                    tokens.push_back({TokenType::NOT_EQUAL, "<>", 0, '\0'});
+                } else if (!is_at_end() && peek() == '=') {
+                    advance();
+                    tokens.push_back({TokenType::LESS_EQUAL, "<=", 0, '\0'});
+                } else {
+                    tokens.push_back({TokenType::LESS, "<", 0, '\0'});
+                }
+                break;
+            case '>':
+                if (!is_at_end() && peek() == '=') {
+                    advance();
+                    tokens.push_back({TokenType::GREATER_EQUAL, ">=", 0, '\0'});
+                } else {
+                    tokens.push_back({TokenType::GREATER, ">", 0, '\0'});
+                }
+                break;
             default:
-                advance();
                 tokens.push_back({TokenType::ILLEGAL, std::string(1, ch), 0, '\0'});
                 break;
         }

@@ -49,4 +49,28 @@ TEST_CASE("Tokenizer scanning loop and punctuation", "[tokenizer]") {
         REQUIRE(tokens[17].type == pbasic::TokenType::FN_ABS);
         REQUIRE(tokens[18].type == pbasic::TokenType::EOL);
     }
+
+    SECTION("scans numeric and string literals") {
+        auto tokens = tokenizer.tokenize("12345 \"HELLO WORLD\" 0");
+        REQUIRE(tokens.size() == 4);
+        REQUIRE(tokens[0].type == pbasic::TokenType::NUMBER);
+        REQUIRE(tokens[0].number_value == 12345);
+        REQUIRE(tokens[1].type == pbasic::TokenType::STRING);
+        REQUIRE(tokens[1].text == "HELLO WORLD");
+        REQUIRE(tokens[2].type == pbasic::TokenType::NUMBER);
+        REQUIRE(tokens[2].number_value == 0);
+        REQUIRE(tokens[3].type == pbasic::TokenType::EOL);
+    }
+
+    SECTION("scans comparison operators") {
+        auto tokens = tokenizer.tokenize("= <> < > <= >=");
+        REQUIRE(tokens.size() == 7);
+        REQUIRE(tokens[0].type == pbasic::TokenType::EQUAL);
+        REQUIRE(tokens[1].type == pbasic::TokenType::NOT_EQUAL);
+        REQUIRE(tokens[2].type == pbasic::TokenType::LESS);
+        REQUIRE(tokens[3].type == pbasic::TokenType::GREATER);
+        REQUIRE(tokens[4].type == pbasic::TokenType::LESS_EQUAL);
+        REQUIRE(tokens[5].type == pbasic::TokenType::GREATER_EQUAL);
+        REQUIRE(tokens[6].type == pbasic::TokenType::EOL);
+    }
 }
