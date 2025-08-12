@@ -53,4 +53,18 @@ const ProgramLine* Program::get_next_line(uint16_t current_line_no) const {
     return nullptr;
 }
 
+void Program::list(std::ostream& out) const {
+    for (const auto& [num, line] : lines_) {
+        out << num << " " << detokenize(line.tokens) << '\n';
+    }
+}
+
+size_t Program::byte_size() const {
+    size_t total = 0;
+    for (const auto& [num, line] : lines_) {
+        total += 4 + detokenize(line.tokens).size() + 1;
+    }
+    return total;
+}
+
 } // namespace pbasic
