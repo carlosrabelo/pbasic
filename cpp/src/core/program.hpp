@@ -26,6 +26,10 @@ public:
     void set_line(uint16_t line_no, std::vector<Token> tokens, std::string raw_text = "");
     bool remove_line(uint16_t line_no);
 
+    const ProgramLine* get_line(uint16_t line_no) const;
+    const ProgramLine* get_first_line() const;
+    const ProgramLine* get_next_line(uint16_t current_line_no) const;
+
 private:
     std::map<uint16_t, ProgramLine> lines_;
 };
