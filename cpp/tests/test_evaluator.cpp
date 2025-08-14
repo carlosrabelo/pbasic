@@ -42,4 +42,20 @@ TEST_CASE("Factor evaluation in expressions", "[evaluator]") {
         pbasic::Evaluator e3(t3, vars, prog, seed);
         REQUIRE(e3.eval_expression() == 50);
     }
+
+    SECTION("Built-in functions ABS, FREE, RND") {
+        auto t1 = tokenizer.tokenize("ABS(-5)");
+        pbasic::Evaluator e1(t1, vars, prog, seed);
+        REQUIRE(e1.eval_expression() == 5);
+
+        auto t2 = tokenizer.tokenize("FREE");
+        pbasic::Evaluator e2(t2, vars, prog, seed);
+        REQUIRE(e2.eval_expression() == 16384);
+
+        auto t3 = tokenizer.tokenize("RND(10)");
+        pbasic::Evaluator e3(t3, vars, prog, seed);
+        int32_t r = e3.eval_expression();
+        REQUIRE(r >= 1);
+        REQUIRE(r <= 10);
+    }
 }
