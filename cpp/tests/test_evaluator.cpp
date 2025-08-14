@@ -92,4 +92,30 @@ TEST_CASE("Factor evaluation in expressions", "[evaluator]") {
         pbasic::Evaluator e4(t4, vars, prog, seed);
         REQUIRE(e4.eval_expression() == 20);
     }
+
+    SECTION("Condition evaluation for relational operators") {
+        auto t1 = tokenizer.tokenize("10 > 5");
+        pbasic::Evaluator e1(t1, vars, prog, seed);
+        REQUIRE(e1.eval_condition() == true);
+
+        auto t2 = tokenizer.tokenize("10 = 5");
+        pbasic::Evaluator e2(t2, vars, prog, seed);
+        REQUIRE(e2.eval_condition() == false);
+
+        auto t3 = tokenizer.tokenize("10 <> 5");
+        pbasic::Evaluator e3(t3, vars, prog, seed);
+        REQUIRE(e3.eval_condition() == true);
+
+        auto t4 = tokenizer.tokenize("10 <= 10");
+        pbasic::Evaluator e4(t4, vars, prog, seed);
+        REQUIRE(e4.eval_condition() == true);
+
+        auto t5 = tokenizer.tokenize("10 >= 20");
+        pbasic::Evaluator e5(t5, vars, prog, seed);
+        REQUIRE(e5.eval_condition() == false);
+
+        auto t6 = tokenizer.tokenize("5 < 10");
+        pbasic::Evaluator e6(t6, vars, prog, seed);
+        REQUIRE(e6.eval_condition() == true);
+    }
 }
