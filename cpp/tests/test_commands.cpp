@@ -46,4 +46,22 @@ TEST_CASE("Command dispatcher skeleton", "[commands]") {
         interp.execute_line("PRINT 10 + 20");
         REQUIRE(out.str() == "30\n");
     }
+
+    SECTION("LET assignment and variable update") {
+        interp.execute_line("LET A = 42");
+        REQUIRE(vars.get('A') == 42);
+
+        out.str("");
+        interp.execute_line("PRINT A");
+        REQUIRE(out.str() == "42\n");
+
+        interp.execute_line("B = 100");
+        REQUIRE(vars.get('B') == 100);
+    }
+
+    SECTION("Syntax error on invalid LET") {
+        out.str("");
+        interp.execute_line("LET = 123");
+        REQUIRE(out.str() == "?SYNTAX ERROR\n");
+    }
 }

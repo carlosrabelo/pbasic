@@ -159,7 +159,27 @@ ExecResult Interpreter::exec_print(const std::vector<Token>& tokens, size_t& cur
     return ExecResult::Ok;
 }
 
-ExecResult Interpreter::exec_let(const std::vector<Token>&, size_t&) {
+ExecResult Interpreter::exec_let(const std::vector<Token>& tokens, size_t& cursor) {
+    if (cursor >= tokens.size() || tokens[cursor].type != TokenType::VARIABLE) {
+        syntax_error();
+        return ExecResult::SyntaxError;
+    }
+
+    char var_name = tokens[cursor].var_name;
+    ++cursor;
+
+    if (cursor >= tokens.size() || tokens[cursor].type != TokenType::EQUAL) {
+        syntax_error();
+        return ExecResult::SyntaxError;
+    }
+    ++cursor;
+
+    Evaluator eval(tokens, vars_, prog_, rand_seed_);
+    eval.set_cursor(cursor);
+    int32_t val = eval.eval_expression();
+    cursor = eval.get_cursor();
+
+    vars_.set(var_name, val);
     return ExecResult::Ok;
 }
 
