@@ -188,6 +188,9 @@ ExecResult Interpreter::exec_input(const std::vector<Token>&, size_t&) {
 }
 
 ExecResult Interpreter::exec_new() {
+    prog_.clear();
+    vars_.clear();
+    io_.print_ok();
     return ExecResult::Ok;
 }
 

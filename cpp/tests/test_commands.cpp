@@ -64,4 +64,14 @@ TEST_CASE("Command dispatcher skeleton", "[commands]") {
         interp.execute_line("LET = 123");
         REQUIRE(out.str() == "?SYNTAX ERROR\n");
     }
+
+    SECTION("NEW clears program and variables with OK confirmation") {
+        vars.set('X', 99);
+        prog.set_line(10, {});
+        out.str("");
+        interp.execute_line("NEW");
+        REQUIRE(out.str() == "OK\n");
+        REQUIRE(vars.get('X') == 0);
+        REQUIRE(prog.empty());
+    }
 }
