@@ -75,4 +75,25 @@ TEST_CASE("Stored program runner", "[flow]") {
         interp.execute_line("RUN");
         REQUIRE(out.str() == "?SYNTAX ERROR\n");
     }
+
+    SECTION("IF THEN conditional branching") {
+        prog.clear();
+        prog.set_line(10, tokenizer.tokenize("IF 10 > 5 THEN 30"));
+        prog.set_line(20, tokenizer.tokenize("PRINT \"FAIL\""));
+        prog.set_line(30, tokenizer.tokenize("PRINT \"PASS\""));
+        prog.set_line(40, tokenizer.tokenize("IF 1 > 2 THEN PRINT \"NEVER\""));
+        prog.set_line(50, tokenizer.tokenize("IF 2 = 2 THEN PRINT \"ALWAYS\""));
+
+        out.str("");
+        interp.execute_line("RUN");
+        REQUIRE(out.str() == "PASS\nALWAYS\n");
+    }
+
+    SECTION("IF without THEN raises syntax error") {
+        prog.clear();
+        prog.set_line(10, tokenizer.tokenize("IF 1 = 1 PRINT 10"));
+        out.str("");
+        interp.execute_line("RUN");
+        REQUIRE(out.str() == "?SYNTAX ERROR\n");
+    }
 }
