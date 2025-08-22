@@ -1,11 +1,16 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+
+	"pbasic/pbasic/internal/repl"
 )
 
 func main() {
+	repl.SetupSignalHandling()
+
 	if len(os.Args) >= 2 {
 		path := os.Args[1]
 		file, err := os.Open(path)
@@ -18,4 +23,6 @@ func main() {
 	}
 
 	fmt.Println("PBasic")
+	r := repl.NewREPL(bufio.NewReader(os.Stdin), os.Stdout)
+	r.Start()
 }
