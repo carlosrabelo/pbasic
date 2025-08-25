@@ -79,6 +79,25 @@ func (l *Lexer) NextToken() token.Token {
 		tok = token.Token{Type: token.SLASH, Literal: "/"}
 		l.readChar()
 	default:
+		if isLetter(l.ch) {
+			ident := l.readIdentifier()
+			if tokType, ok := token.LookupIdent(ident); ok {
+				if tokType == token.REM {
+					l.skipWhitespace()
+					comment := l.readRestOfLine()
+					return token.Token{Type: token.REM, Literal: comment}
+				}
+				return token.Token{Type: tokType, Literal: ident}
+			}
+			if len(ident) == 1 && ident[0] >= 'A' && ident[0] <= 'Z' {
+				return token.Token{
+					Type:    token.IDENT,
+					Literal: ident,
+					VarName: ident[0],
+				}
+			}
+			return token.Token{Type: token.ILLEGAL, Literal: ident}
+		}
 		tok = token.Token{Type: token.ILLEGAL, Literal: string(l.ch)}
 		l.readChar()
 	}
@@ -103,4 +122,24 @@ func Tokenize(input string) []token.Token {
 	}
 
 	return tokens
+}
+
+func (l *Lexer) readIdentifier() string {
+	start := l.position
+	for isLetter(l.ch) {
+		l.readChar()
+	}
+	return l.input[start:l.position]
+}
+
+func (l *Lexer) readRestOfLine() string {
+	start := l.position
+	for l.ch != 0 && l.ch != '\n' && l.ch != '\r' {
+		l.readChar()
+	}
+	return l.input[start:l.position]
+}
+
+func isLetter(ch byte) bool {
+	return (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')
 }
