@@ -1,6 +1,9 @@
 package lexer
 
 import (
+	"strconv"
+	"unicode"
+
 	"pbasic/pbasic/internal/token"
 )
 
@@ -78,7 +81,45 @@ func (l *Lexer) NextToken() token.Token {
 	case '/':
 		tok = token.Token{Type: token.SLASH, Literal: "/"}
 		l.readChar()
+	case '=':
+		if l.peekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.EQ, Literal: string(ch) + string(l.ch)}
+		} else {
+			tok = token.Token{Type: token.ASSIGN, Literal: "="}
+		}
+		l.readChar()
+	case '<':
+		if l.peekChar() == '>' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.NEQ, Literal: string(ch) + string(l.ch)}
+		} else if l.peekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.LE, Literal: string(ch) + string(l.ch)}
+		} else {
+			tok = token.Token{Type: token.LT, Literal: "<"}
+		}
+		l.readChar()
+	case '>':
+		if l.peekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.GE, Literal: string(ch) + string(l.ch)}
+		} else {
+			tok = token.Token{Type: token.GT, Literal: ">"}
+		}
+		l.readChar()
+	case '"':
+		str := l.readString()
+		tok = token.Token{Type: token.STRING, Literal: str}
 	default:
+		if unicode.IsDigit(rune(l.ch)) {
+			numStr, val := l.readNumber()
+			return token.Token{Type: token.NUMBER, Literal: numStr, NumberVal: val}
+		}
 		if isLetter(l.ch) {
 			ident := l.readIdentifier()
 			if tokType, ok := token.LookupIdent(ident); ok {
@@ -142,4 +183,27 @@ func (l *Lexer) readRestOfLine() string {
 
 func isLetter(ch byte) bool {
 	return (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')
+}
+
+func (l *Lexer) readString() string {
+	l.readChar() // skip opening quote
+	start := l.position
+	for l.ch != '"' && l.ch != 0 && l.ch != '\n' && l.ch != '\r' {
+		l.readChar()
+	}
+	str := l.input[start:l.position]
+	if l.ch == '"' {
+		l.readChar() // consume closing quote
+	}
+	return str
+}
+
+func (l *Lexer) readNumber() (string, int32) {
+	start := l.position
+	for unicode.IsDigit(rune(l.ch)) {
+		l.readChar()
+	}
+	numStr := l.input[start:l.position]
+	val64, _ := strconv.ParseInt(numStr, 10, 32)
+	return numStr, int32(val64)
 }
