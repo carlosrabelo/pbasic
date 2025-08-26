@@ -1,6 +1,8 @@
 package ast
 
 import (
+	"sort"
+
 	"pbasic/pbasic/internal/token"
 )
 
@@ -45,6 +47,31 @@ func (p *ProgramStore) HasLine(lineNo uint16) bool {
 // GetLine retrieves the LineNode for the given line number, or nil if not found.
 func (p *ProgramStore) GetLine(lineNo uint16) *LineNode {
 	return p.lines[lineNo]
+}
+
+// SetLine inserts or replaces a line in the program store, maintaining strictly sorted order.
+func (p *ProgramStore) SetLine(lineNo uint16, tokens []token.Token, rawText string) {
+	node := &LineNode{
+		LineNumber: lineNo,
+		Tokens:     tokens,
+		RawText:    rawText,
+	}
+
+	if _, exists := p.lines[lineNo]; exists {
+		p.lines[lineNo] = node
+		return
+	}
+
+	p.lines[lineNo] = node
+
+	// Insert into sorted order slice using binary search
+	idx := sort.Search(len(p.order), func(i int) bool {
+		return p.order[i] >= lineNo
+	})
+
+	p.order = append(p.order, 0)
+	copy(p.order[idx+1:], p.order[idx:])
+	p.order[idx] = lineNo
 }
 
 // ByteSize computes the total memory consumption of the program.
