@@ -93,6 +93,27 @@ func (p *ProgramStore) RemoveLine(lineNo uint16) bool {
 	return true
 }
 
+// FirstLine returns the first stored LineNode, or nil if the program is empty.
+func (p *ProgramStore) FirstLine() *LineNode {
+	if len(p.order) == 0 {
+		return nil
+	}
+	return p.lines[p.order[0]]
+}
+
+// NextLine returns the line following current line number, or nil if current is last or beyond end.
+func (p *ProgramStore) NextLine(current uint16) *LineNode {
+	idx := sort.Search(len(p.order), func(i int) bool {
+		return p.order[i] > current
+	})
+
+	if idx < len(p.order) {
+		return p.lines[p.order[idx]]
+	}
+
+	return nil
+}
+
 // ByteSize computes the total memory consumption of the program.
 func (p *ProgramStore) ByteSize() int {
 	total := 0
