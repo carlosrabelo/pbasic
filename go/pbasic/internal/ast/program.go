@@ -74,6 +74,25 @@ func (p *ProgramStore) SetLine(lineNo uint16, tokens []token.Token, rawText stri
 	p.order[idx] = lineNo
 }
 
+// RemoveLine removes a line from the store. Returns true if the line existed and was removed.
+func (p *ProgramStore) RemoveLine(lineNo uint16) bool {
+	if _, exists := p.lines[lineNo]; !exists {
+		return false
+	}
+
+	delete(p.lines, lineNo)
+
+	idx := sort.Search(len(p.order), func(i int) bool {
+		return p.order[i] >= lineNo
+	})
+
+	if idx < len(p.order) && p.order[idx] == lineNo {
+		p.order = append(p.order[:idx], p.order[idx+1:]...)
+	}
+
+	return true
+}
+
 // ByteSize computes the total memory consumption of the program.
 func (p *ProgramStore) ByteSize() int {
 	total := 0
