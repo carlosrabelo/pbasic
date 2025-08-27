@@ -1,8 +1,11 @@
 package ast
 
 import (
+	"fmt"
+	"io"
 	"sort"
 
+	"pbasic/pbasic/internal/lexer"
 	"pbasic/pbasic/internal/token"
 )
 
@@ -112,6 +115,15 @@ func (p *ProgramStore) NextLine(current uint16) *LineNode {
 	}
 
 	return nil
+}
+
+// List prints all stored program lines in ascending order to the specified writer.
+func (p *ProgramStore) List(w io.Writer) {
+	for _, lineNo := range p.order {
+		node := p.lines[lineNo]
+		formatted := lexer.FormatTokens(node.Tokens)
+		fmt.Fprintf(w, "%d %s\n", lineNo, formatted)
+	}
 }
 
 // ByteSize computes the total memory consumption of the program.
