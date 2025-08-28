@@ -53,3 +53,44 @@ func TestEvalFactor(t *testing.T) {
 		t.Errorf("EvalExpression() for (99) got %d, want 99", val)
 	}
 }
+
+func TestBuiltinFunctions(t *testing.T) {
+	// ABS
+	tokens := []token.Token{
+		{Type: token.ABS, Literal: "ABS"},
+		{Type: token.LPAREN, Literal: "("},
+		{Type: token.MINUS, Literal: "-"},
+		{Type: token.NUMBER, Literal: "50", NumberVal: 50},
+		{Type: token.RPAREN, Literal: ")"},
+		{Type: token.EOL, Literal: "\n"},
+	}
+	ev := NewEvaluator(tokens, nil, nil, nil)
+	if val := ev.EvalExpression(); val != 50 {
+		t.Errorf("ABS(-50) got %d, want 50", val)
+	}
+
+	// FREE
+	tokens = []token.Token{
+		{Type: token.FREE, Literal: "FREE"},
+		{Type: token.EOL, Literal: "\n"},
+	}
+	ev = NewEvaluator(tokens, nil, nil, nil)
+	if val := ev.EvalExpression(); val != 16384 {
+		t.Errorf("FREE without program got %d, want 16384", val)
+	}
+
+	// RND
+	seed := uint16(12345)
+	tokens = []token.Token{
+		{Type: token.RND, Literal: "RND"},
+		{Type: token.LPAREN, Literal: "("},
+		{Type: token.NUMBER, Literal: "10", NumberVal: 10},
+		{Type: token.RPAREN, Literal: ")"},
+		{Type: token.EOL, Literal: "\n"},
+	}
+	ev = NewEvaluator(tokens, nil, nil, &seed)
+	rndVal := ev.EvalExpression()
+	if rndVal < 1 || rndVal > 10 {
+		t.Errorf("RND(10) got %d, want between 1 and 10", rndVal)
+	}
+}

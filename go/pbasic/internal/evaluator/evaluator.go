@@ -73,6 +73,37 @@ func (e *Evaluator) evalFactor() int32 {
 		return 0
 	}
 
+	if e.match(token.FREE) {
+		if e.prog != nil {
+			return int32(16384 - e.prog.ByteSize())
+		}
+		return 16384
+	}
+
+	if e.match(token.RND) {
+		e.match(token.LPAREN)
+		x := e.EvalExpression()
+		e.match(token.RPAREN)
+		if e.randSeed != nil {
+			*e.randSeed = uint16((uint32(*e.randSeed)*25173 + 13849) & 0xFFFF)
+			if x <= 0 {
+				return int32(*e.randSeed)
+			}
+			return int32((*e.randSeed % uint16(x)) + 1)
+		}
+		return 0
+	}
+
+	if e.match(token.ABS) {
+		e.match(token.LPAREN)
+		val := e.EvalExpression()
+		e.match(token.RPAREN)
+		if val < 0 {
+			return -val
+		}
+		return val
+	}
+
 	if e.match(token.LPAREN) {
 		val := e.EvalExpression()
 		e.match(token.RPAREN)
