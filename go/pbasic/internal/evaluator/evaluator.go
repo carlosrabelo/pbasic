@@ -122,7 +122,28 @@ func (e *Evaluator) evalFactor() int32 {
 	return 0
 }
 
+// evalTerm parses and evaluates multiplicative terms (* and /).
+func (e *Evaluator) evalTerm() int32 {
+	left := e.evalFactor()
+
+	for e.check(token.ASTERISK) || e.check(token.SLASH) {
+		op := e.advance().Type
+		right := e.evalFactor()
+
+		uleft := uint16(left & 0xFFFF)
+		uright := uint16(right & 0xFFFF)
+
+		if op == token.ASTERISK {
+			left = int32(Mul16(uleft, uright))
+		} else {
+			left = int32(Div16(uleft, uright))
+		}
+	}
+
+	return left
+}
+
 // EvalExpression parses and evaluates an expression.
 func (e *Evaluator) EvalExpression() int32 {
-	return e.evalFactor()
+	return e.evalTerm()
 }
