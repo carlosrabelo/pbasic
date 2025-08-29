@@ -178,3 +178,107 @@ func TestEvalExpression(t *testing.T) {
 		t.Errorf("10 - 3 - 2 got %d, want 5", val)
 	}
 }
+
+func TestEvalCondition(t *testing.T) {
+	tests := []struct {
+		name   string
+		tokens []token.Token
+		want   bool
+	}{
+		{
+			"equal true (5 = 5)",
+			[]token.Token{
+				{Type: token.NUMBER, NumberVal: 5},
+				{Type: token.ASSIGN, Literal: "="},
+				{Type: token.NUMBER, NumberVal: 5},
+				{Type: token.EOL},
+			},
+			true,
+		},
+		{
+			"equal false (5 = 6)",
+			[]token.Token{
+				{Type: token.NUMBER, NumberVal: 5},
+				{Type: token.ASSIGN, Literal: "="},
+				{Type: token.NUMBER, NumberVal: 6},
+				{Type: token.EOL},
+			},
+			false,
+		},
+		{
+			"not equal true (5 <> 6)",
+			[]token.Token{
+				{Type: token.NUMBER, NumberVal: 5},
+				{Type: token.NEQ, Literal: "<>"},
+				{Type: token.NUMBER, NumberVal: 6},
+				{Type: token.EOL},
+			},
+			true,
+		},
+		{
+			"less than true (4 < 5)",
+			[]token.Token{
+				{Type: token.NUMBER, NumberVal: 4},
+				{Type: token.LT, Literal: "<"},
+				{Type: token.NUMBER, NumberVal: 5},
+				{Type: token.EOL},
+			},
+			true,
+		},
+		{
+			"less than equal true (5 <= 5)",
+			[]token.Token{
+				{Type: token.NUMBER, NumberVal: 5},
+				{Type: token.LE, Literal: "<="},
+				{Type: token.NUMBER, NumberVal: 5},
+				{Type: token.EOL},
+			},
+			true,
+		},
+		{
+			"greater than true (6 > 5)",
+			[]token.Token{
+				{Type: token.NUMBER, NumberVal: 6},
+				{Type: token.GT, Literal: ">"},
+				{Type: token.NUMBER, NumberVal: 5},
+				{Type: token.EOL},
+			},
+			true,
+		},
+		{
+			"greater than equal true (5 >= 5)",
+			[]token.Token{
+				{Type: token.NUMBER, NumberVal: 5},
+				{Type: token.GE, Literal: ">="},
+				{Type: token.NUMBER, NumberVal: 5},
+				{Type: token.EOL},
+			},
+			true,
+		},
+		{
+			"truthy without relop (1 != 0)",
+			[]token.Token{
+				{Type: token.NUMBER, NumberVal: 1},
+				{Type: token.EOL},
+			},
+			true,
+		},
+		{
+			"falsy without relop (0 == 0)",
+			[]token.Token{
+				{Type: token.NUMBER, NumberVal: 0},
+				{Type: token.EOL},
+			},
+			false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ev := NewEvaluator(tt.tokens, nil, nil, nil)
+			if got := ev.EvalCondition(); got != tt.want {
+				t.Errorf("%s got %v, want %v", tt.name, got, tt.want)
+			}
+		})
+	}
+}
