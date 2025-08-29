@@ -132,3 +132,49 @@ func TestEvalTerm(t *testing.T) {
 		t.Errorf("100 / 0 got %d, want 65535", val)
 	}
 }
+
+func TestEvalExpression(t *testing.T) {
+	// Precedence: 2 + 3 * 4 == 14
+	tokens := []token.Token{
+		{Type: token.NUMBER, Literal: "2", NumberVal: 2},
+		{Type: token.PLUS, Literal: "+"},
+		{Type: token.NUMBER, Literal: "3", NumberVal: 3},
+		{Type: token.ASTERISK, Literal: "*"},
+		{Type: token.NUMBER, Literal: "4", NumberVal: 4},
+		{Type: token.EOL, Literal: "\n"},
+	}
+	ev := NewEvaluator(tokens, nil, nil, nil)
+	if val := ev.EvalExpression(); val != 14 {
+		t.Errorf("2 + 3 * 4 got %d, want 14", val)
+	}
+
+	// Parentheses override precedence: (2 + 3) * 4 == 20
+	tokens = []token.Token{
+		{Type: token.LPAREN, Literal: "("},
+		{Type: token.NUMBER, Literal: "2", NumberVal: 2},
+		{Type: token.PLUS, Literal: "+"},
+		{Type: token.NUMBER, Literal: "3", NumberVal: 3},
+		{Type: token.RPAREN, Literal: ")"},
+		{Type: token.ASTERISK, Literal: "*"},
+		{Type: token.NUMBER, Literal: "4", NumberVal: 4},
+		{Type: token.EOL, Literal: "\n"},
+	}
+	ev = NewEvaluator(tokens, nil, nil, nil)
+	if val := ev.EvalExpression(); val != 20 {
+		t.Errorf("(2 + 3) * 4 got %d, want 20", val)
+	}
+
+	// Left associativity: 10 - 3 - 2 == 5
+	tokens = []token.Token{
+		{Type: token.NUMBER, Literal: "10", NumberVal: 10},
+		{Type: token.MINUS, Literal: "-"},
+		{Type: token.NUMBER, Literal: "3", NumberVal: 3},
+		{Type: token.MINUS, Literal: "-"},
+		{Type: token.NUMBER, Literal: "2", NumberVal: 2},
+		{Type: token.EOL, Literal: "\n"},
+	}
+	ev = NewEvaluator(tokens, nil, nil, nil)
+	if val := ev.EvalExpression(); val != 5 {
+		t.Errorf("10 - 3 - 2 got %d, want 5", val)
+	}
+}

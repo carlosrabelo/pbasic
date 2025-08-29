@@ -143,7 +143,20 @@ func (e *Evaluator) evalTerm() int32 {
 	return left
 }
 
-// EvalExpression parses and evaluates an expression.
+// EvalExpression parses and evaluates an expression using + and - with 32-bit math.
 func (e *Evaluator) EvalExpression() int32 {
-	return e.evalTerm()
+	left := e.evalTerm()
+
+	for e.check(token.PLUS) || e.check(token.MINUS) {
+		op := e.advance().Type
+		right := e.evalTerm()
+
+		if op == token.PLUS {
+			left += right
+		} else {
+			left -= right
+		}
+	}
+
+	return left
 }
