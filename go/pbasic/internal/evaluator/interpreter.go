@@ -93,6 +93,45 @@ func (interp *Interpreter) ExecuteStatement(tokens []token.Token) ExecResult {
 }
 
 func (interp *Interpreter) execPrint(tokens []token.Token, cursor *int) ExecResult {
+	trailingSemicolon := false
+
+	for *cursor < len(tokens) {
+		tok := tokens[*cursor]
+		if tok.Type == token.EOL || tok.Type == token.EOF {
+			break
+		}
+
+		if tok.Type == token.STRING {
+			if interp.Out != nil {
+				fmt.Fprint(interp.Out, tok.Literal)
+			}
+			*cursor++
+			trailingSemicolon = false
+		} else if tok.Type == token.COMMA {
+			if interp.Out != nil {
+				fmt.Fprint(interp.Out, "        ")
+			}
+			*cursor++
+			trailingSemicolon = false
+		} else if tok.Type == token.SEMICOLON {
+			*cursor++
+			trailingSemicolon = true
+		} else {
+			eval := NewEvaluator(tokens, interp.Vars, interp.Prog, &interp.RandSeed)
+			eval.SetCursor(*cursor)
+			val := eval.EvalExpression()
+			*cursor = eval.GetCursor()
+			if interp.Out != nil {
+				fmt.Fprint(interp.Out, val)
+			}
+			trailingSemicolon = false
+		}
+	}
+
+	if !trailingSemicolon && interp.Out != nil {
+		fmt.Fprintln(interp.Out)
+	}
+
 	return ExecOk
 }
 
