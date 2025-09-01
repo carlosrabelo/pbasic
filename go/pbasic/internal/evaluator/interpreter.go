@@ -136,6 +136,28 @@ func (interp *Interpreter) execPrint(tokens []token.Token, cursor *int) ExecResu
 }
 
 func (interp *Interpreter) execLet(tokens []token.Token, cursor *int) ExecResult {
+	if *cursor >= len(tokens) || tokens[*cursor].Type != token.IDENT {
+		interp.syntaxError()
+		return ExecSyntaxError
+	}
+
+	varName := tokens[*cursor].VarName
+	*cursor++
+
+	if *cursor >= len(tokens) || (tokens[*cursor].Type != token.ASSIGN && tokens[*cursor].Type != token.EQ) {
+		interp.syntaxError()
+		return ExecSyntaxError
+	}
+	*cursor++
+
+	eval := NewEvaluator(tokens, interp.Vars, interp.Prog, &interp.RandSeed)
+	eval.SetCursor(*cursor)
+	val := eval.EvalExpression()
+	*cursor = eval.GetCursor()
+
+	if interp.Vars != nil {
+		interp.Vars.Set(varName, val)
+	}
 	return ExecOk
 }
 
