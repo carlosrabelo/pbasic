@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"bytes"
+	"fmt"
 	"pbasic/pbasic/internal/ast"
 	"pbasic/pbasic/internal/token"
 	"strings"
@@ -190,5 +191,49 @@ func TestExecNew(t *testing.T) {
 	}
 	if val := vars.Get('Z'); val != 0 {
 		t.Errorf("expected variable Z to be 0 after NEW, got %d", val)
+	}
+}
+
+func TestExecFreeAndRem(t *testing.T) {
+	out := &bytes.Buffer{}
+	prog := ast.NewProgramStore()
+	interp := NewInterpreter(nil, out, prog, nil, 12345)
+
+	// FREE with empty program
+	out.Reset()
+	tokens := []token.Token{
+		{Type: token.FREE, Literal: "FREE"},
+		{Type: token.EOL, Literal: "\n"},
+	}
+	res := interp.ExecuteStatement(tokens)
+	if res != ExecOk {
+		t.Errorf("FREE returned %v, want ExecOk", res)
+	}
+	if out.String() != "16384\n" {
+		t.Errorf("FREE output got %q, want '16384\\n'", out.String())
+	}
+
+	// FREE with stored lines
+	out.Reset()
+	prog.SetLine(10, []token.Token{{Type: token.PRINT, Literal: "PRINT"}}, "PRINT")
+	interp.ExecuteStatement(tokens)
+	expectedFree := 16384 - prog.ByteSize()
+	expectedStr := fmt.Sprintf("%d\n", expectedFree)
+	if out.String() != expectedStr {
+		t.Errorf("FREE with program got %q, want %q", out.String(), expectedStr)
+	}
+
+	// REM has no output
+	out.Reset()
+	remTokens := []token.Token{
+		{Type: token.REM, Literal: "a friendly remark"},
+		{Type: token.EOL, Literal: "\n"},
+	}
+	res = interp.ExecuteStatement(remTokens)
+	if res != ExecOk {
+		t.Errorf("REM returned %v, want ExecOk", res)
+	}
+	if out.String() != "" {
+		t.Errorf("REM produced unexpected output: %q", out.String())
 	}
 }

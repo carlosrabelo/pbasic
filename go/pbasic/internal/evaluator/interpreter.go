@@ -175,5 +175,16 @@ func (interp *Interpreter) execNew() ExecResult {
 }
 
 func (interp *Interpreter) execFree() ExecResult {
+	byteSize := 0
+	if interp.Prog != nil {
+		byteSize = interp.Prog.ByteSize()
+	}
+	freeBytes := 0
+	if 16384 >= byteSize {
+		freeBytes = 16384 - byteSize
+	}
+	if interp.Out != nil {
+		fmt.Fprintln(interp.Out, freeBytes)
+	}
 	return ExecOk
 }
