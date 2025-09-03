@@ -266,3 +266,41 @@ func TestExecIfThen(t *testing.T) {
 		t.Errorf("IF missing THEN got %v, want ExecSyntaxError", res)
 	}
 }
+
+func TestExecEndAndExit(t *testing.T) {
+	out := &bytes.Buffer{}
+	prog := ast.NewProgramStore()
+	interp := NewInterpreter(nil, out, prog, nil, 12345)
+
+	// END halts stored program
+	prog.SetLine(10, []token.Token{
+		{Type: token.PRINT, Literal: "PRINT"},
+		{Type: token.STRING, Literal: "BEFORE END"},
+		{Type: token.EOL},
+	}, "")
+	prog.SetLine(20, []token.Token{
+		{Type: token.END, Literal: "END"},
+		{Type: token.EOL},
+	}, "")
+	prog.SetLine(30, []token.Token{
+		{Type: token.PRINT, Literal: "PRINT"},
+		{Type: token.STRING, Literal: "AFTER END"},
+		{Type: token.EOL},
+	}, "")
+
+	out.Reset()
+	interp.RunProgram()
+	if out.String() != "BEFORE END\n" {
+		t.Errorf("END did not halt execution properly, got %q, want 'BEFORE END\\n'", out.String())
+	}
+
+	// EXIT sets ExitRequested
+	out.Reset()
+	res := interp.ExecuteStatement([]token.Token{{Type: token.EXIT, Literal: "EXIT"}, {Type: token.EOL}})
+	if res != ExecStop {
+		t.Errorf("EXIT got %v, want ExecStop", res)
+	}
+	if !interp.ExitRequested {
+		t.Errorf("expected ExitRequested to be true")
+	}
+}
