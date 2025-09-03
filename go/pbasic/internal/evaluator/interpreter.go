@@ -87,6 +87,10 @@ func (interp *Interpreter) ExecuteStatement(tokens []token.Token) ExecResult {
 	case token.RETURN:
 		return interp.execReturn()
 
+	case token.IF:
+		cursor++
+		return interp.execIf(tokens, &cursor)
+
 	case token.PRINT:
 		cursor++
 		return interp.execPrint(tokens, &cursor)
@@ -309,6 +313,38 @@ func (interp *Interpreter) execReturn() ExecResult {
 	interp.BranchTarget = retLine
 	interp.BranchTaken = true
 	return ExecOk
+}
+
+func (interp *Interpreter) execIf(tokens []token.Token, cursor *int) ExecResult {
+	eval := NewEvaluator(tokens, interp.Vars, interp.Prog, &interp.RandSeed)
+	eval.SetCursor(*cursor)
+	cond := eval.EvalCondition()
+	*cursor = eval.GetCursor()
+
+	if *cursor >= len(tokens) || tokens[*cursor].Type != token.THEN {
+		interp.syntaxError()
+		return ExecSyntaxError
+	}
+	*cursor++
+
+	if !cond {
+		return ExecOk
+	}
+
+	if *cursor < len(tokens) && tokens[*cursor].Type == token.NUMBER {
+		target := uint16(tokens[*cursor].NumberVal)
+		if interp.Prog == nil || !interp.Prog.HasLine(target) {
+			interp.syntaxError()
+			interp.Halted = true
+			return ExecSyntaxError
+		}
+		interp.BranchTarget = target
+		interp.BranchTaken = true
+		return ExecOk
+	}
+
+	remaining := tokens[*cursor:]
+	return interp.ExecuteStatement(remaining)
 }
 
 func (interp *Interpreter) execList() ExecResult {
