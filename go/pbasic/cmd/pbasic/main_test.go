@@ -31,15 +31,19 @@ func TestCLIArgumentDispatch(t *testing.T) {
 		}
 	})
 
-	t.Run("existing file exits cleanly with code 0", func(t *testing.T) {
+	t.Run("existing file exits cleanly with code 0 and prints output", func(t *testing.T) {
 		tempFile := filepath.Join(tempDir, "test.bas")
-		if err := os.WriteFile(tempFile, []byte("10 PRINT 1\n"), 0644); err != nil {
+		if err := os.WriteFile(tempFile, []byte("10 PRINT \"FROM FILE\"\n20 END\n"), 0644); err != nil {
 			t.Fatalf("failed to create temp file: %v", err)
 		}
 
 		cmd := exec.Command(binPath, tempFile)
-		if err := cmd.Run(); err != nil {
+		out, err := cmd.Output()
+		if err != nil {
 			t.Fatalf("expected clean exit for existing file, got: %v", err)
+		}
+		if !strings.Contains(string(out), "FROM FILE") {
+			t.Errorf("expected stdout to contain 'FROM FILE', got: %q", string(out))
 		}
 	})
 
