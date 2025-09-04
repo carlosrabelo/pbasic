@@ -67,3 +67,43 @@ func TestExecInput(t *testing.T) {
 		t.Errorf("INPUT missing semicolon got %v, want ExecSyntaxError", res)
 	}
 }
+
+func TestPRNGAndRND(t *testing.T) {
+	seed := uint16(12345)
+	firstVal := NextRND(&seed)
+	expectedVal := uint16((uint32(12345)*25173 + 13849) & 0xFFFF)
+	if firstVal != expectedVal {
+		t.Errorf("NextRND got %d, want %d", firstVal, expectedVal)
+	}
+
+	// RND(0) returns raw 16-bit word
+	seed = 12345
+	tokens := []token.Token{
+		{Type: token.RND, Literal: "RND"},
+		{Type: token.LPAREN, Literal: "("},
+		{Type: token.NUMBER, NumberVal: 0},
+		{Type: token.RPAREN, Literal: ")"},
+		{Type: token.EOL},
+	}
+	ev := NewEvaluator(tokens, nil, nil, &seed)
+	res := ev.EvalExpression()
+	if uint16(res) != expectedVal {
+		t.Errorf("RND(0) got %d, want %d", res, expectedVal)
+	}
+
+	// RND(6) returns 1..6
+	for i := 0; i < 50; i++ {
+		tokens = []token.Token{
+			{Type: token.RND, Literal: "RND"},
+			{Type: token.LPAREN, Literal: "("},
+			{Type: token.NUMBER, NumberVal: 6},
+			{Type: token.RPAREN, Literal: ")"},
+			{Type: token.EOL},
+		}
+		ev = NewEvaluator(tokens, nil, nil, &seed)
+		dice := ev.EvalExpression()
+		if dice < 1 || dice > 6 {
+			t.Errorf("RND(6) returned out-of-range value %d", dice)
+		}
+	}
+}
