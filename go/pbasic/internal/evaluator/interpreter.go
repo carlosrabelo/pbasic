@@ -1,8 +1,12 @@
 package evaluator
 
 import (
+	"bufio"
 	"fmt"
 	"io"
+	"strconv"
+	"strings"
+
 	"pbasic/pbasic/internal/ast"
 	"pbasic/pbasic/internal/token"
 )
@@ -96,6 +100,10 @@ func (interp *Interpreter) ExecuteStatement(tokens []token.Token) ExecResult {
 
 	case token.EXIT:
 		return interp.execExit()
+
+	case token.INPUT:
+		cursor++
+		return interp.execInput(tokens, &cursor)
 
 	case token.PRINT:
 		cursor++
@@ -362,6 +370,66 @@ func (interp *Interpreter) execExit() ExecResult {
 	interp.ExitRequested = true
 	interp.Halted = true
 	return ExecStop
+}
+
+func (interp *Interpreter) execInput(tokens []token.Token, cursor *int) ExecResult {
+	if *cursor < len(tokens) && tokens[*cursor].Type == token.STRING {
+		if interp.Out != nil {
+			fmt.Fprint(interp.Out, tokens[*cursor].Literal)
+		}
+		*cursor++
+		if *cursor >= len(tokens) || tokens[*cursor].Type != token.SEMICOLON {
+			interp.syntaxError()
+			return ExecSyntaxError
+		}
+		*cursor++
+	} else {
+		if interp.Out != nil {
+			fmt.Fprint(interp.Out, "? ")
+		}
+	}
+
+	if *cursor >= len(tokens) || tokens[*cursor].Type != token.IDENT {
+		interp.syntaxError()
+		return ExecSyntaxError
+	}
+
+	varName := tokens[*cursor].VarName
+	*cursor++
+
+	if interp.In == nil {
+		interp.Halted = true
+		return ExecStop
+	}
+
+	reader := bufio.NewReader(interp.In)
+	line, err := reader.ReadString('\n')
+	if interp.CheckInterrupted != nil && interp.CheckInterrupted() {
+		if interp.Out != nil {
+			fmt.Fprintln(interp.Out)
+		}
+		interp.Halted = true
+		return ExecStop
+	}
+	if err != nil && len(line) == 0 {
+		interp.Halted = true
+		return ExecStop
+	}
+
+	trimmed := strings.TrimSpace(line)
+	var val int32
+	if len(trimmed) > 0 {
+		parsed, err := strconv.ParseInt(trimmed, 10, 32)
+		if err == nil {
+			val = int32(parsed)
+		}
+	}
+
+	if interp.Vars != nil {
+		interp.Vars.Set(varName, val)
+	}
+
+	return ExecOk
 }
 
 func (interp *Interpreter) execList() ExecResult {
