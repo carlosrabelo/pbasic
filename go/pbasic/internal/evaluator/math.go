@@ -43,3 +43,11 @@ func NextRND(seed *uint16) uint16 {
 	*seed = uint16((uint32(*seed)*25173 + 13849) & 0xFFFF)
 	return *seed
 }
+
+// Abs32 computes the 32-bit absolute value of a signed integer.
+func Abs32(a int32) int32 {
+	if a < 0 {
+		return -a
+	}
+	return a
+}
