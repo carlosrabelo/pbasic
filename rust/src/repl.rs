@@ -43,6 +43,46 @@ pub fn write_ok<W: Write>(w: &mut W) -> io::Result<()> {
     writeln!(w, "OK")
 }
 
+/// Folds ASCII lowercase letters to uppercase outside double quotes (`"..."`).
+pub fn fold_case(line: &str) -> String {
+    let mut result = String::with_capacity(line.len());
+    let mut in_quote = false;
+
+    for ch in line.chars() {
+        if ch == '"' {
+            in_quote = !in_quote;
+            result.push(ch);
+        } else if in_quote {
+            result.push(ch);
+        } else {
+            result.push(ch.to_ascii_uppercase());
+        }
+    }
+
+    result
+}
+
+/// Reads a line from reader, strips trailing newline/CRLF, and applies case folding.
+/// Returns Ok(None) on EOF.
+pub fn read_line<R: BufRead>(reader: &mut R) -> io::Result<Option<String>> {
+    let mut line = String::new();
+    let bytes_read = reader.read_line(&mut line)?;
+    if bytes_read == 0 {
+        return Ok(None);
+    }
+
+    if line.ends_with('\n') {
+        line.pop();
+        if line.ends_with('\r') {
+            line.pop();
+        }
+    } else if line.ends_with('\r') {
+        line.pop();
+    }
+
+    Ok(Some(fold_case(&line)))
+}
+
 /// Dispatches execution based on command line arguments.
 ///
 /// If no file argument is provided, enters interactive REPL mode.
@@ -113,6 +153,31 @@ mod tests {
         buf.clear();
         write_ok(&mut buf).unwrap();
         assert_eq!(String::from_utf8(buf).unwrap(), "OK\n");
+    }
+
+    #[test]
+    fn test_fold_case() {
+        assert_eq!(fold_case("print \"hello world\""), "PRINT \"hello world\"");
+        assert_eq!(
+            fold_case("10 let a = 5 : rem \"don't touch lowercase\""),
+            "10 LET A = 5 : REM \"don't touch lowercase\""
+        );
+        assert_eq!(fold_case("goto 100"), "GOTO 100");
+    }
+
+    #[test]
+    fn test_read_line() {
+        let input = "10 print \"hi\"\r\n20 goto 10\n";
+        let mut cursor = std::io::Cursor::new(input);
+
+        let line1 = read_line(&mut cursor).unwrap();
+        assert_eq!(line1, Some("10 PRINT \"hi\"".to_string()));
+
+        let line2 = read_line(&mut cursor).unwrap();
+        assert_eq!(line2, Some("20 GOTO 10".to_string()));
+
+        let line3 = read_line(&mut cursor).unwrap();
+        assert_eq!(line3, None);
     }
 
     #[test]
