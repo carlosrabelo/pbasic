@@ -53,6 +53,10 @@ impl Program {
         self.lines.insert(line_no, line);
     }
 
+    pub fn remove_line(&mut self, line_no: u16) -> bool {
+        self.lines.remove(&line_no).is_some()
+    }
+
     pub fn get_line(&self, line_no: u16) -> Option<&ProgramLine> {
         self.lines.get(&line_no)
     }
@@ -93,5 +97,19 @@ mod tests {
         prog.set_line(20, vec![], "PRINT 200".to_string());
         assert_eq!(prog.len(), 3);
         assert_eq!(prog.get_line(20).unwrap().raw_text, "PRINT 200");
+    }
+
+    #[test]
+    fn test_remove_line() {
+        let mut prog = Program::new();
+        prog.set_line(10, vec![], "PRINT 10".to_string());
+        prog.set_line(20, vec![], "PRINT 20".to_string());
+
+        assert!(prog.remove_line(10));
+        assert!(!prog.has_line(10));
+        assert_eq!(prog.len(), 1);
+
+        assert!(!prog.remove_line(99));
+        assert_eq!(prog.len(), 1);
     }
 }
