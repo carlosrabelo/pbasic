@@ -224,6 +224,72 @@ pub fn tokenize(input: &str) -> Vec<Token> {
     lexer.scan_tokens()
 }
 
+/// Reconstructs a canonical BASIC text representation from tokens.
+pub fn format_tokens(tokens: &[Token]) -> String {
+    let mut s = String::new();
+
+    for tok in tokens {
+        match &tok.token_type {
+            TokenType::Let => s.push_str("LET "),
+            TokenType::Goto => s.push_str("GOTO "),
+            TokenType::Gosub => s.push_str("GOSUB "),
+            TokenType::Print => s.push_str("PRINT "),
+            TokenType::If => s.push_str("IF "),
+            TokenType::Input => s.push_str("INPUT "),
+            TokenType::Return => s.push_str("RETURN"),
+            TokenType::End => s.push_str("END"),
+            TokenType::List => s.push_str("LIST"),
+            TokenType::Run => s.push_str("RUN"),
+            TokenType::New => s.push_str("NEW"),
+            TokenType::Exit => s.push_str("EXIT"),
+            TokenType::Rem => {
+                s.push_str("REM ");
+                s.push_str(&tok.text);
+            }
+            TokenType::Then => s.push_str(" THEN "),
+            TokenType::Free => s.push_str("FREE"),
+            TokenType::Rnd => s.push_str("RND"),
+            TokenType::Abs => s.push_str("ABS"),
+            TokenType::Number(val) => s.push_str(&val.to_string()),
+            TokenType::String(lit) => {
+                s.push('"');
+                s.push_str(lit);
+                s.push('"');
+            }
+            TokenType::Variable(v) => s.push(*v),
+            TokenType::Plus => s.push_str(" + "),
+            TokenType::Minus => {
+                if s.is_empty() || s.ends_with('(') || s.ends_with(' ') {
+                    s.push('-');
+                } else {
+                    s.push_str(" - ");
+                }
+            }
+            TokenType::Asterisk => s.push_str(" * "),
+            TokenType::Slash => s.push_str(" / "),
+            TokenType::Equal => s.push_str(" = "),
+            TokenType::NotEqual => s.push_str(" <> "),
+            TokenType::Less => s.push_str(" < "),
+            TokenType::Greater => s.push_str(" > "),
+            TokenType::LessEqual => s.push_str(" <= "),
+            TokenType::GreaterEqual => s.push_str(" >= "),
+            TokenType::LParen => s.push('('),
+            TokenType::RParen => s.push(')'),
+            TokenType::Comma => s.push_str(", "),
+            TokenType::Semicolon => s.push_str("; "),
+            TokenType::Colon => s.push_str(" : "),
+            TokenType::Eol | TokenType::Eof | TokenType::Illegal => {}
+        }
+    }
+
+    s
+}
+
+/// Alias for format_tokens.
+pub fn detokenize(tokens: &[Token]) -> String {
+    format_tokens(tokens)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -303,5 +369,18 @@ mod tests {
                 TokenType::Eol,
             ]
         );
+    }
+
+    #[test]
+    fn test_detokenizer() {
+        let original = "LET A = 10 + 20";
+        let tokens = tokenize(original);
+        let reconstructed = detokenize(&tokens);
+        assert_eq!(reconstructed, "LET A = 10 + 20");
+
+        let original2 = "PRINT \"HELLO\"; X";
+        let tokens2 = tokenize(original2);
+        let reconstructed2 = detokenize(&tokens2);
+        assert_eq!(reconstructed2, "PRINT \"HELLO\"; X");
     }
 }
