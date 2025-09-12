@@ -44,6 +44,26 @@ pub fn var_index(name: char) -> usize {
     }
 }
 
+/// 16-bit unsigned multiplication with wrapping truncation.
+pub fn mul16(a: u16, b: u16) -> u16 {
+    a.wrapping_mul(b)
+}
+
+/// Signed 32-bit addition.
+pub fn add32(a: i32, b: i32) -> i32 {
+    a.wrapping_add(b)
+}
+
+/// Signed 32-bit subtraction.
+pub fn sub32(a: i32, b: i32) -> i32 {
+    a.wrapping_sub(b)
+}
+
+/// Signed 32-bit negation.
+pub fn neg32(a: i32) -> i32 {
+    a.wrapping_neg()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -84,5 +104,16 @@ mod tests {
         store.clear();
         assert_eq!(store.get('A'), 0);
         assert_eq!(store.get('Z'), 0);
+    }
+
+    #[test]
+    fn test_mul16_and_arithmetic() {
+        assert_eq!(mul16(100, 20), 2000);
+        assert_eq!(mul16(1000, 1000), (1_000_000u32 & 0xFFFF) as u16);
+
+        assert_eq!(add32(100, 200), 300);
+        assert_eq!(sub32(100, 200), -100);
+        assert_eq!(neg32(15), -15);
+        assert_eq!(neg32(-15), 15);
     }
 }
