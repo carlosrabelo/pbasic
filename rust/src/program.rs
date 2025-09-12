@@ -72,6 +72,31 @@ impl Program {
             .next()
             .map(|(_, line)| line)
     }
+
+    pub fn list<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        for (line_no, line) in &self.lines {
+            let text = if !line.tokens.is_empty() {
+                crate::lexer::format_tokens(&line.tokens)
+            } else {
+                line.raw_text.clone()
+            };
+            writeln!(writer, "{} {}", line_no, text)?;
+        }
+        Ok(())
+    }
+
+    pub fn byte_size(&self) -> usize {
+        let mut total = 0;
+        for line in self.lines.values() {
+            let text = if !line.tokens.is_empty() {
+                crate::lexer::format_tokens(&line.tokens)
+            } else {
+                line.raw_text.clone()
+            };
+            total += 4 + text.len() + 1;
+        }
+        total
+    }
 }
 
 #[cfg(test)]
@@ -145,5 +170,19 @@ mod tests {
         assert_eq!(third.line_number, 30);
 
         assert!(prog.next_line(30).is_none());
+    }
+
+    #[test]
+    fn test_list_and_byte_size() {
+        let mut prog = Program::new();
+        prog.set_line(20, vec![], "PRINT 20".to_string());
+        prog.set_line(10, vec![], "PRINT 10".to_string());
+
+        let mut buf = Vec::new();
+        prog.list(&mut buf).unwrap();
+        let listing = String::from_utf8(buf).unwrap();
+        assert_eq!(listing, "10 PRINT 10\n20 PRINT 20\n");
+
+        assert_eq!(prog.byte_size(), (4 + 8 + 1) * 2);
     }
 }
