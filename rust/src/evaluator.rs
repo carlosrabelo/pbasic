@@ -156,6 +156,49 @@ impl<'a> Evaluator<'a> {
 
         Ok(left)
     }
+
+    pub fn eval_condition(&mut self) -> Result<bool, String> {
+        let left = self.eval_expression()?;
+
+        let op_tok = match self.peek() {
+            Some(t) => t.clone(),
+            None => return Ok(left != 0),
+        };
+
+        match op_tok.token_type {
+            TokenType::Equal => {
+                self.advance();
+                let right = self.eval_expression()?;
+                Ok(left == right)
+            }
+            TokenType::NotEqual => {
+                self.advance();
+                let right = self.eval_expression()?;
+                Ok(left != right)
+            }
+            TokenType::Less => {
+                self.advance();
+                let right = self.eval_expression()?;
+                Ok(left < right)
+            }
+            TokenType::Greater => {
+                self.advance();
+                let right = self.eval_expression()?;
+                Ok(left > right)
+            }
+            TokenType::LessEqual => {
+                self.advance();
+                let right = self.eval_expression()?;
+                Ok(left <= right)
+            }
+            TokenType::GreaterEqual => {
+                self.advance();
+                let right = self.eval_expression()?;
+                Ok(left >= right)
+            }
+            _ => Ok(left != 0),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -271,5 +314,40 @@ mod tests {
         let tokens5 = tokenize("10 - 50");
         let mut eval5 = Evaluator::new(&tokens5, &mut vars, &prog, &mut seed);
         assert_eq!(eval5.eval_expression().unwrap(), -40);
+    }
+
+    #[test]
+    fn test_eval_condition() {
+        let mut vars = VariableStore::new();
+        let prog = Program::new();
+        let mut seed = 12345;
+
+        let pairs = [
+            ("10 = 10", true),
+            ("10 = 20", false),
+            ("10 <> 20", true),
+            ("10 <> 10", false),
+            ("5 < 10", true),
+            ("10 < 5", false),
+            ("10 > 5", true),
+            ("5 > 10", false),
+            ("5 <= 5", true),
+            ("5 <= 4", false),
+            ("5 >= 5", true),
+            ("4 >= 5", false),
+            ("1", true),
+            ("0", false),
+        ];
+
+        for (expr, expected) in pairs {
+            let tokens = tokenize(expr);
+            let mut eval = Evaluator::new(&tokens, &mut vars, &prog, &mut seed);
+            assert_eq!(
+                eval.eval_condition().unwrap(),
+                expected,
+                "Failed for: {}",
+                expr
+            );
+        }
     }
 }
