@@ -146,8 +146,11 @@ impl Interpreter {
         Ok(())
     }
 
-    pub fn exec_new<W: Write>(&mut self, _writer: &mut W) -> io::Result<()> {
-        Ok(())
+    pub fn exec_new<W: Write>(&mut self, writer: &mut W) -> io::Result<()> {
+        self.prog.clear();
+        self.vars.clear();
+        self.call_stack.clear();
+        writeln!(writer, "OK")
     }
 
     pub fn exec_free<W: Write>(&mut self, _writer: &mut W) -> io::Result<()> {
@@ -232,5 +235,22 @@ mod tests {
         let tokens4 = tokenize("LET 123");
         interp.execute_statement(&tokens4, &mut buf).unwrap();
         assert_eq!(String::from_utf8(buf).unwrap(), "?SYNTAX ERROR\n");
+    }
+
+    #[test]
+    fn test_exec_new() {
+        let mut interp = Interpreter::new();
+        interp.vars.set('A', 42);
+        interp.prog.set_line(10, vec![], "PRINT 10".to_string());
+        interp.call_stack.push(10);
+
+        let mut buf = Vec::new();
+        let tokens = tokenize("NEW");
+        interp.execute_statement(&tokens, &mut buf).unwrap();
+
+        assert_eq!(String::from_utf8(buf).unwrap(), "OK\n");
+        assert_eq!(interp.vars.get('A'), 0);
+        assert!(interp.prog.is_empty());
+        assert!(interp.call_stack.is_empty());
     }
 }
