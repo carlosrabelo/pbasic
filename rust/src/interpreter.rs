@@ -153,8 +153,9 @@ impl Interpreter {
         writeln!(writer, "OK")
     }
 
-    pub fn exec_free<W: Write>(&mut self, _writer: &mut W) -> io::Result<()> {
-        Ok(())
+    pub fn exec_free<W: Write>(&mut self, writer: &mut W) -> io::Result<()> {
+        let free_mem = 16384_usize.saturating_sub(self.prog.byte_size());
+        writeln!(writer, "{}", free_mem)
     }
 }
 
@@ -252,5 +253,21 @@ mod tests {
         assert_eq!(interp.vars.get('A'), 0);
         assert!(interp.prog.is_empty());
         assert!(interp.call_stack.is_empty());
+    }
+
+    #[test]
+    fn test_exec_rem_and_free() {
+        let mut interp = Interpreter::new();
+        let mut buf = Vec::new();
+
+        // REM
+        let tokens1 = tokenize("REM this is a comment");
+        interp.execute_statement(&tokens1, &mut buf).unwrap();
+        assert!(buf.is_empty());
+
+        // FREE
+        let tokens2 = tokenize("FREE");
+        interp.execute_statement(&tokens2, &mut buf).unwrap();
+        assert_eq!(String::from_utf8(buf).unwrap(), "16384\n");
     }
 }
