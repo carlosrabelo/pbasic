@@ -57,6 +57,7 @@ impl Interpreter {
             TokenType::Free => self.exec_free(writer),
             TokenType::Run => self.run_program(writer),
             TokenType::List => self.prog.list(writer),
+            TokenType::Goto => self.exec_goto(&tokens[1..], writer),
             TokenType::Variable(_)
                 if tokens.len() > 1 && tokens[1].token_type == TokenType::Equal =>
             {
@@ -166,6 +167,33 @@ impl Interpreter {
     pub fn exec_free<W: Write>(&mut self, writer: &mut W) -> io::Result<()> {
         let free_mem = 16384_usize.saturating_sub(self.prog.byte_size());
         writeln!(writer, "{}", free_mem)
+    }
+
+    pub fn exec_goto<W: Write>(&mut self, tokens: &[Token], writer: &mut W) -> io::Result<()> {
+        let mut eval = crate::evaluator::Evaluator::new(
+            tokens,
+            &mut self.vars,
+            &self.prog,
+            &mut self.rand_seed,
+        );
+        let target_val = match eval.eval_expression() {
+            Ok(v) if v > 0 && v <= 65535 => v as u16,
+            _ => {
+                self.halted = true;
+                writeln!(writer, "?SYNTAX ERROR")?;
+                return Ok(());
+            }
+        };
+
+        if !self.prog.has_line(target_val) {
+            self.halted = true;
+            writeln!(writer, "?SYNTAX ERROR")?;
+            return Ok(());
+        }
+
+        self.branch_target = target_val;
+        self.branch_taken = true;
+        Ok(())
     }
 
     pub fn run_program<W: Write>(&mut self, writer: &mut W) -> io::Result<()> {
@@ -347,6 +375,43 @@ mod tests {
             "PRINT \"LINE 20\"".to_string(),
         );
         interp.execute_statement(&tokens, &mut buf).unwrap();
-        assert_eq!(String::from_utf8(buf).unwrap(), "LINE 10\nLINE 20\n");
+        assert_eq!(
+            String::from_utf8(buf.clone()).unwrap(),
+            "LINE 10\nLINE 20\n"
+        );
+    }
+
+    #[test]
+    fn test_exec_goto() {
+        let mut interp = Interpreter::new();
+        let mut buf = Vec::new();
+
+        // Jump forward skipping line 20
+        interp
+            .prog
+            .set_line(10, tokenize("GOTO 30"), "GOTO 30".to_string());
+        interp.prog.set_line(
+            20,
+            tokenize("PRINT \"SKIPPED\""),
+            "PRINT \"SKIPPED\"".to_string(),
+        );
+        interp.prog.set_line(
+            30,
+            tokenize("PRINT \"TARGET\""),
+            "PRINT \"TARGET\"".to_string(),
+        );
+
+        let tokens = tokenize("RUN");
+        interp.execute_statement(&tokens, &mut buf).unwrap();
+        assert_eq!(String::from_utf8(buf.clone()).unwrap(), "TARGET\n");
+
+        // Non-existent target
+        buf.clear();
+        interp.prog.clear();
+        interp
+            .prog
+            .set_line(10, tokenize("GOTO 99"), "GOTO 99".to_string());
+        interp.execute_statement(&tokens, &mut buf).unwrap();
+        assert_eq!(String::from_utf8(buf).unwrap(), "?SYNTAX ERROR\n");
     }
 }
