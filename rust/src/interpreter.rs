@@ -58,6 +58,8 @@ impl Interpreter {
             TokenType::Run => self.run_program(writer),
             TokenType::List => self.prog.list(writer),
             TokenType::Goto => self.exec_goto(&tokens[1..], writer),
+            TokenType::Gosub => self.exec_gosub(&tokens[1..], writer),
+            TokenType::Return => self.exec_return(writer),
             TokenType::Variable(_)
                 if tokens.len() > 1 && tokens[1].token_type == TokenType::Equal =>
             {
@@ -193,6 +195,65 @@ impl Interpreter {
 
         self.branch_target = target_val;
         self.branch_taken = true;
+        Ok(())
+    }
+
+    pub fn exec_gosub<W: Write>(&mut self, tokens: &[Token], writer: &mut W) -> io::Result<()> {
+        if self.call_stack.len() >= 16 {
+            self.halted = true;
+            writeln!(writer, "?SYNTAX ERROR")?;
+            return Ok(());
+        }
+
+        let mut eval = crate::evaluator::Evaluator::new(
+            tokens,
+            &mut self.vars,
+            &self.prog,
+            &mut self.rand_seed,
+        );
+        let target_val = match eval.eval_expression() {
+            Ok(v) if v > 0 && v <= 65535 => v as u16,
+            _ => {
+                self.halted = true;
+                writeln!(writer, "?SYNTAX ERROR")?;
+                return Ok(());
+            }
+        };
+
+        if !self.prog.has_line(target_val) {
+            self.halted = true;
+            writeln!(writer, "?SYNTAX ERROR")?;
+            return Ok(());
+        }
+
+        let return_line_no = self
+            .prog
+            .next_line(self.current_line_no)
+            .map(|l| l.line_number)
+            .unwrap_or(0);
+
+        self.call_stack.push(return_line_no);
+        self.branch_target = target_val;
+        self.branch_taken = true;
+        Ok(())
+    }
+
+    pub fn exec_return<W: Write>(&mut self, writer: &mut W) -> io::Result<()> {
+        let return_line_no = match self.call_stack.pop() {
+            Some(line) => line,
+            None => {
+                self.halted = true;
+                writeln!(writer, "?SYNTAX ERROR")?;
+                return Ok(());
+            }
+        };
+
+        if return_line_no == 0 {
+            self.halted = true;
+        } else {
+            self.branch_target = return_line_no;
+            self.branch_taken = true;
+        }
         Ok(())
     }
 
@@ -411,6 +472,44 @@ mod tests {
         interp
             .prog
             .set_line(10, tokenize("GOTO 99"), "GOTO 99".to_string());
+        interp.execute_statement(&tokens, &mut buf).unwrap();
+        assert_eq!(String::from_utf8(buf.clone()).unwrap(), "?SYNTAX ERROR\n");
+    }
+
+    #[test]
+    fn test_exec_gosub_and_return() {
+        let mut interp = Interpreter::new();
+        let mut buf = Vec::new();
+
+        interp
+            .prog
+            .set_line(10, tokenize("GOSUB 100"), "GOSUB 100".to_string());
+        interp
+            .prog
+            .set_line(20, tokenize("PRINT \"BACK\""), "PRINT \"BACK\"".to_string());
+        interp
+            .prog
+            .set_line(30, tokenize("GOTO 999"), "GOTO 999".to_string());
+        interp
+            .prog
+            .set_line(100, tokenize("PRINT \"SUB\""), "PRINT \"SUB\"".to_string());
+        interp
+            .prog
+            .set_line(110, tokenize("RETURN"), "RETURN".to_string());
+        interp
+            .prog
+            .set_line(999, tokenize("REM end"), "REM end".to_string());
+
+        let tokens = tokenize("RUN");
+        interp.execute_statement(&tokens, &mut buf).unwrap();
+        assert_eq!(String::from_utf8(buf.clone()).unwrap(), "SUB\nBACK\n");
+
+        // Stack underflow
+        buf.clear();
+        interp.prog.clear();
+        interp
+            .prog
+            .set_line(10, tokenize("RETURN"), "RETURN".to_string());
         interp.execute_statement(&tokens, &mut buf).unwrap();
         assert_eq!(String::from_utf8(buf).unwrap(), "?SYNTAX ERROR\n");
     }
