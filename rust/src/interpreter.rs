@@ -61,6 +61,8 @@ impl Interpreter {
             TokenType::Gosub => self.exec_gosub(&tokens[1..], writer),
             TokenType::Return => self.exec_return(writer),
             TokenType::If => self.exec_if(&tokens[1..], writer),
+            TokenType::End => self.exec_end(),
+            TokenType::Exit => self.exec_exit(),
             TokenType::Variable(_)
                 if tokens.len() > 1 && tokens[1].token_type == TokenType::Equal =>
             {
@@ -296,6 +298,17 @@ impl Interpreter {
         } else {
             self.execute_statement(remaining, writer)
         }
+    }
+
+    pub fn exec_end(&mut self) -> io::Result<()> {
+        self.halted = true;
+        Ok(())
+    }
+
+    pub fn exec_exit(&mut self) -> io::Result<()> {
+        self.exit_requested = true;
+        self.halted = true;
+        Ok(())
     }
 
     pub fn run_program<W: Write>(&mut self, writer: &mut W) -> io::Result<()> {
@@ -588,5 +601,34 @@ mod tests {
         let run_tokens = tokenize("RUN");
         interp.execute_statement(&run_tokens, &mut buf).unwrap();
         assert_eq!(String::from_utf8(buf).unwrap(), "YES\n");
+    }
+
+    #[test]
+    fn test_exec_end_and_exit() {
+        let mut interp = Interpreter::new();
+        let mut buf = Vec::new();
+
+        interp.prog.set_line(
+            10,
+            tokenize("PRINT \"START\""),
+            "PRINT \"START\"".to_string(),
+        );
+        interp.prog.set_line(20, tokenize("END"), "END".to_string());
+        interp.prog.set_line(
+            30,
+            tokenize("PRINT \"NEVER\""),
+            "PRINT \"NEVER\"".to_string(),
+        );
+
+        let run_tokens = tokenize("RUN");
+        interp.execute_statement(&run_tokens, &mut buf).unwrap();
+        assert_eq!(String::from_utf8(buf).unwrap(), "START\n");
+        assert!(interp.halted);
+
+        // EXIT command
+        let exit_tokens = tokenize("EXIT");
+        let mut buf2 = Vec::new();
+        interp.execute_statement(&exit_tokens, &mut buf2).unwrap();
+        assert!(interp.exit_requested);
     }
 }
