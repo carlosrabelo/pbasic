@@ -59,6 +59,12 @@ pub fn mod16(a: u16, b: u16) -> u16 {
     a.checked_rem(b).unwrap_or(a)
 }
 
+/// Linear congruential generator step advancing PRNG seed.
+pub fn next_rnd(seed: &mut u16) -> u16 {
+    *seed = seed.wrapping_mul(25173).wrapping_add(13849);
+    *seed
+}
+
 /// Signed 32-bit addition.
 pub fn add32(a: i32, b: i32) -> i32 {
     a.wrapping_add(b)
@@ -134,5 +140,14 @@ mod tests {
 
         assert_eq!(mod16(100, 30), 10);
         assert_eq!(mod16(100, 0), 100);
+    }
+
+    #[test]
+    fn test_next_rnd() {
+        let mut seed = 12345;
+        let expected1 = 12345u16.wrapping_mul(25173).wrapping_add(13849);
+        assert_eq!(next_rnd(&mut seed), expected1);
+        let expected2 = expected1.wrapping_mul(25173).wrapping_add(13849);
+        assert_eq!(next_rnd(&mut seed), expected2);
     }
 }
