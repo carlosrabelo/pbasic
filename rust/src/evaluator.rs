@@ -91,7 +91,7 @@ impl<'a> Evaluator<'a> {
                 self.consume_token(TokenType::LParen)?;
                 let arg = self.eval_expression()?;
                 self.consume_token(TokenType::RParen)?;
-                Ok(if arg < 0 { arg.wrapping_neg() } else { arg })
+                Ok(arg.wrapping_abs())
             }
             TokenType::Minus => {
                 self.advance();
@@ -246,13 +246,17 @@ mod tests {
         assert_eq!(eval1.eval_factor().unwrap(), 16384);
 
         // ABS
-        let tokens2 = tokenize("ABS(-5)");
+        let tokens2 = tokenize("ABS(-15)");
         let mut eval2 = Evaluator::new(&tokens2, &mut vars, &prog, &mut seed);
-        assert_eq!(eval2.eval_factor().unwrap(), 5);
+        assert_eq!(eval2.eval_factor().unwrap(), 15);
 
-        let tokens3 = tokenize("ABS(42)");
+        let tokens3 = tokenize("ABS(15)");
         let mut eval3 = Evaluator::new(&tokens3, &mut vars, &prog, &mut seed);
-        assert_eq!(eval3.eval_factor().unwrap(), 42);
+        assert_eq!(eval3.eval_factor().unwrap(), 15);
+
+        let tokens_zero = tokenize("ABS(0)");
+        let mut eval_zero = Evaluator::new(&tokens_zero, &mut vars, &prog, &mut seed);
+        assert_eq!(eval_zero.eval_factor().unwrap(), 0);
 
         // RND
         let tokens4 = tokenize("RND(10)");
