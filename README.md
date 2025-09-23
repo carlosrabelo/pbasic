@@ -64,6 +64,7 @@ Execute a BASIC source file directly:
 cpp/                 # C++20 implementation and Catch2 test suite
 go/                  # Go implementation and test suite
 rust/                # Rust implementation and test suite
+demos/               # Shared BASIC demonstration programs
 Makefile             # Root orchestrator Makefile
 LICENSE              # MIT License
 ```

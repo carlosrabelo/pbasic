@@ -42,7 +42,6 @@ make build
 
 ```
 src/                 # Código-fonte Rust (main.rs, lib.rs, módulos)
-demos/               # Scripts BASIC de exemplo
 bin/                 # Binários compilados
 .make/               # Scripts de automação
 Makefile             # Makefile do componente

@@ -305,6 +305,7 @@ mod tests {
         run_loop(&mut cursor, &mut output).unwrap();
         let out_str = String::from_utf8(output).unwrap();
         assert!(out_str.contains("\n> "));
+        crate::signals::set_interrupted(false);
     }
 
     #[test]

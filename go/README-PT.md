@@ -42,7 +42,6 @@ make build
 
 ```
 pbasic/              # Código-fonte Go (cmd/, internal/)
-demos/               # Scripts BASIC de exemplo
 bin/                 # Binários compilados
 .make/               # Scripts de automação
 Makefile             # Makefile do componente

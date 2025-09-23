@@ -734,5 +734,6 @@ mod tests {
             .unwrap();
         assert!(interp.halted);
         assert_eq!(String::from_utf8(buf).unwrap(), "? \n");
+        crate::signals::set_interrupted(false);
     }
 }
