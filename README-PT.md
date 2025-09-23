@@ -16,6 +16,8 @@ Interpretador BASIC de inteiros determinístico implementado em modernas linguag
 ## Pré-requisitos
 
 - **GCC / Clang** — compilador C++20 necessário para o componente C++ (`g++` 11+ ou `clang++` 13+)
+- **Go** — Go 1.24+ necessário para o componente Go
+- **Rust** — Rust 1.70+ (`cargo`) necessário para o componente Rust
 - **Make** — GNU Make 4.0+ para automação de compilação
 
 ## Instalação
@@ -34,10 +36,17 @@ make build
 
 ### REPL Interativo
 
-Inicie o interpretador sem argumentos:
+Inicie o interpretador de qualquer implementação sem argumentos:
 
 ```bash
+# C++
 ./cpp/bin/pbasic
+
+# Go
+./go/bin/pbasic
+
+# Rust
+./rust/bin/pbasic
 ```
 
 Sessão de exemplo:
@@ -52,11 +61,20 @@ HELLO, WORLD!
 
 ### Execução de Script em Lote
 
-Execute um arquivo fonte BASIC diretamente:
+Execute um script demo compartilhado ou qualquer arquivo `.bas` diretamente com qualquer implementação:
 
 ```bash
-./cpp/bin/pbasic program.bas
+# Executar demonstração hello world
+./cpp/bin/pbasic demos/01_hello.bas
+./go/bin/pbasic demos/01_hello.bas
+./rust/bin/pbasic demos/01_hello.bas
 ```
+
+O diretório `demos/` contém programas de exemplo padronizados:
+- `demos/01_hello.bas` — Saída, laços de repetição com variáveis e iteração
+- `demos/02_math.bas` — Aritmética sinalizada de 32 bits, divisão e módulo
+- `demos/03_guess.bas` — Jogo interativo de adivinhação de números (`INPUT`, `RND`)
+- `demos/99_test.bas` — Suíte completa de testes de regressão automatizados
 
 ## Estrutura do Projeto
 
