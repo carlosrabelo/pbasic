@@ -181,10 +181,50 @@ begin
   DeleteFile(TempFile);
 end;
 
+procedure TestFoldCase;
+begin
+  writeln('=== RUN TestFoldCase');
+  AssertEquals('PRINT "hello world"', FoldCase('print "hello world"'), 'TestFoldCase/preserves_quoted_string');
+  AssertEquals('10 LET A = 5', FoldCase('10 let a = 5'), 'TestFoldCase/converts_keywords_and_vars');
+  AssertEquals('PRINT "MiXeD cAsE"', FoldCase('print "MiXeD cAsE"'), 'TestFoldCase/preserves_mixed_case_in_quotes');
+end;
+
+procedure TestReadLine;
+var
+  TempFile, Line: string;
+  F: TextFile;
+  HasLine: Boolean;
+begin
+  writeln('=== RUN TestReadLine');
+  TempFile := GetTempDir + 'pbasic_readline_test.tmp';
+  AssignFile(F, TempFile);
+  Rewrite(F);
+  write(F, '10 print "hello"' + #13#10);
+  write(F, '20 end' + #10);
+  CloseFile(F);
+
+  Reset(F);
+  HasLine := ReadLine(F, Line);
+  AssertTrue(HasLine, 'TestReadLine/first_line_exists');
+  AssertEquals('10 PRINT "hello"', Line, 'TestReadLine/first_line_content');
+
+  HasLine := ReadLine(F, Line);
+  AssertTrue(HasLine, 'TestReadLine/second_line_exists');
+  AssertEquals('20 END', Line, 'TestReadLine/second_line_content');
+
+  HasLine := ReadLine(F, Line);
+  AssertTrue(not HasLine, 'TestReadLine/eof_returns_false');
+  CloseFile(F);
+
+  DeleteFile(TempFile);
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
   TestConsoleIOHelpers;
+  TestFoldCase;
+  TestReadLine;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');

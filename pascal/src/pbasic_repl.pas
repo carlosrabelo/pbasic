@@ -16,6 +16,10 @@ procedure PrintCRLF; overload;
 procedure PrintOK(var F: Text); overload;
 procedure PrintOK; overload;
 
+function FoldCase(const S: string): string;
+function ReadLine(var F: Text; var S: string): Boolean; overload;
+function ReadLine(var S: string): Boolean; overload;
+
 implementation
 
 procedure PrintStr(var F: Text; const S: string);
@@ -56,6 +60,41 @@ end;
 procedure PrintOK;
 begin
   writeln(Output, 'OK');
+end;
+
+function FoldCase(const S: string): string;
+var
+  I: Integer;
+  InQuotes: Boolean;
+  C: Char;
+begin
+  Result := '';
+  InQuotes := False;
+  for I := 1 to Length(S) do
+  begin
+    C := S[I];
+    if C = '"' then
+      InQuotes := not InQuotes
+    else if (not InQuotes) and (C in ['a'..'z']) then
+      C := UpCase(C);
+    Result := Result + C;
+  end;
+end;
+
+function ReadLine(var F: Text; var S: string): Boolean;
+begin
+  if Eof(F) then
+    Exit(False);
+  ReadLn(F, S);
+  if (Length(S) > 0) and (S[Length(S)] = #13) then
+    Delete(S, Length(S), 1);
+  S := FoldCase(S);
+  Result := True;
+end;
+
+function ReadLine(var S: string): Boolean;
+begin
+  Result := ReadLine(Input, S);
 end;
 
 end.
