@@ -3,7 +3,7 @@ program test_runner;
 {$mode objfpc}{$H+}
 
 uses
-  SysUtils, Classes, Process, pbasic_repl, pbasic_signals, pbasic_token;
+  SysUtils, Classes, Process, pbasic_repl, pbasic_signals, pbasic_token, pbasic_lexer;
 
 var
   TotalTests: Integer = 0;
@@ -320,6 +320,32 @@ begin
   AssertEquals('IDENT', TokenTypeToString(Arr[1].TokenType), 'TestTokenDataStructures/type_to_string_ident');
 end;
 
+procedure TestLexerPunctuation;
+var
+  Tokens: TTokenArray;
+begin
+  writeln('=== RUN TestLexerPunctuation');
+
+  // Empty string produces single EOL token
+  Tokens := Tokenize('   ');
+  AssertTrue(Length(Tokens) = 1, 'TestLexerPunctuation/empty_len');
+  AssertTrue(Tokens[0].TokenType = ttEOL, 'TestLexerPunctuation/empty_eol');
+
+  // Punctuation stream with whitespace
+  Tokens := Tokenize(' + - * / ( ) , ; : ');
+  AssertTrue(Length(Tokens) = 10, 'TestLexerPunctuation/punct_len');
+  AssertTrue(Tokens[0].TokenType = ttPlus, 'TestLexerPunctuation/tok_plus');
+  AssertTrue(Tokens[1].TokenType = ttMinus, 'TestLexerPunctuation/tok_minus');
+  AssertTrue(Tokens[2].TokenType = ttStar, 'TestLexerPunctuation/tok_star');
+  AssertTrue(Tokens[3].TokenType = ttSlash, 'TestLexerPunctuation/tok_slash');
+  AssertTrue(Tokens[4].TokenType = ttOpenParen, 'TestLexerPunctuation/tok_openparen');
+  AssertTrue(Tokens[5].TokenType = ttCloseParen, 'TestLexerPunctuation/tok_closeparen');
+  AssertTrue(Tokens[6].TokenType = ttComma, 'TestLexerPunctuation/tok_comma');
+  AssertTrue(Tokens[7].TokenType = ttSemicolon, 'TestLexerPunctuation/tok_semicolon');
+  AssertTrue(Tokens[8].TokenType = ttColon, 'TestLexerPunctuation/tok_colon');
+  AssertTrue(Tokens[9].TokenType = ttEOL, 'TestLexerPunctuation/tok_eol');
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -329,6 +355,7 @@ begin
   TestSignalInterruptedFlag;
   TestREPLStart;
   TestTokenDataStructures;
+  TestLexerPunctuation;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
