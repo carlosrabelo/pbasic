@@ -346,6 +346,47 @@ begin
   AssertTrue(Tokens[9].TokenType = ttEOL, 'TestLexerPunctuation/tok_eol');
 end;
 
+procedure TestLexerKeywordsAndVars;
+var
+  Tokens: TTokenArray;
+begin
+  writeln('=== RUN TestLexerKeywordsAndVars');
+
+  // Single-letter variable recognition
+  Tokens := Tokenize('A B Z');
+  AssertTrue(Length(Tokens) = 4, 'TestLexerKeywordsAndVars/vars_len');
+  AssertTrue(Tokens[0].TokenType = ttIdent, 'TestLexerKeywordsAndVars/tok_a');
+  AssertTrue(Tokens[0].VarName = 'A', 'TestLexerKeywordsAndVars/var_a');
+  AssertTrue(Tokens[1].TokenType = ttIdent, 'TestLexerKeywordsAndVars/tok_b');
+  AssertTrue(Tokens[1].VarName = 'B', 'TestLexerKeywordsAndVars/var_b');
+  AssertTrue(Tokens[2].TokenType = ttIdent, 'TestLexerKeywordsAndVars/tok_z');
+  AssertTrue(Tokens[2].VarName = 'Z', 'TestLexerKeywordsAndVars/var_z');
+
+  // Keywords recognition
+  Tokens := Tokenize('LET PRINT IF THEN GOTO GOSUB RETURN END');
+  AssertTrue(Tokens[0].TokenType = ttLet, 'TestLexerKeywordsAndVars/tok_let');
+  AssertTrue(Tokens[1].TokenType = ttPrint, 'TestLexerKeywordsAndVars/tok_print');
+  AssertTrue(Tokens[2].TokenType = ttIf, 'TestLexerKeywordsAndVars/tok_if');
+  AssertTrue(Tokens[3].TokenType = ttThen, 'TestLexerKeywordsAndVars/tok_then');
+  AssertTrue(Tokens[4].TokenType = ttGoto, 'TestLexerKeywordsAndVars/tok_goto');
+  AssertTrue(Tokens[5].TokenType = ttGosub, 'TestLexerKeywordsAndVars/tok_gosub');
+  AssertTrue(Tokens[6].TokenType = ttReturn, 'TestLexerKeywordsAndVars/tok_return');
+  AssertTrue(Tokens[7].TokenType = ttEnd, 'TestLexerKeywordsAndVars/tok_end');
+
+  // Built-in functions
+  Tokens := Tokenize('FREE RND ABS');
+  AssertTrue(Tokens[0].TokenType = ttFree, 'TestLexerKeywordsAndVars/tok_free');
+  AssertTrue(Tokens[1].TokenType = ttRnd, 'TestLexerKeywordsAndVars/tok_rnd');
+  AssertTrue(Tokens[2].TokenType = ttAbs, 'TestLexerKeywordsAndVars/tok_abs');
+
+  // REM consumes rest of line
+  Tokens := Tokenize('REM this is a test comment 123 + -');
+  AssertTrue(Length(Tokens) = 2, 'TestLexerKeywordsAndVars/rem_len');
+  AssertTrue(Tokens[0].TokenType = ttRem, 'TestLexerKeywordsAndVars/rem_type');
+  AssertEquals('this is a test comment 123 + -', Tokens[0].Literal, 'TestLexerKeywordsAndVars/rem_literal');
+  AssertTrue(Tokens[1].TokenType = ttEOL, 'TestLexerKeywordsAndVars/rem_eol');
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -356,6 +397,7 @@ begin
   TestREPLStart;
   TestTokenDataStructures;
   TestLexerPunctuation;
+  TestLexerKeywordsAndVars;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
