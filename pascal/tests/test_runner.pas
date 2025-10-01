@@ -3,7 +3,7 @@ program test_runner;
 {$mode objfpc}{$H+}
 
 uses
-  SysUtils, Classes, Process, pbasic_repl, pbasic_signals, pbasic_token, pbasic_lexer;
+  SysUtils, Classes, Process, pbasic_repl, pbasic_signals, pbasic_token, pbasic_lexer, pbasic_program;
 
 var
   TotalTests: Integer = 0;
@@ -452,6 +452,35 @@ begin
   AssertEquals('IF X <> 0 THEN GOTO 100', Reconstructed, 'TestTokenDetokenizer/if_then_goto');
 end;
 
+procedure TestProgramStoreDataStructures;
+var
+  Prog: TProgram;
+  Line: TProgramLine;
+  Toks: TTokenArray;
+  Raw: string;
+begin
+  writeln('=== RUN TestProgramStoreDataStructures');
+
+  // Verify ProgramLine record fields
+  Line.LineNumber := 10;
+  SetLength(Line.Tokens, 1);
+  Line.Tokens[0] := CreateToken(ttRem, 'A COMMENT');
+  Line.RawText := '10 REM A COMMENT';
+  AssertTrue(Line.LineNumber = 10, 'TestProgramStoreDataStructures/line_no');
+  AssertEquals('10 REM A COMMENT', Line.RawText, 'TestProgramStoreDataStructures/line_raw');
+
+  // Verify TProgram initialization and empty state
+  Prog := TProgram.Create;
+  try
+    AssertTrue(Prog.Empty, 'TestProgramStoreDataStructures/initially_empty');
+    AssertTrue(Prog.LineCount = 0, 'TestProgramStoreDataStructures/initial_count_zero');
+    AssertTrue(not Prog.HasLine(10), 'TestProgramStoreDataStructures/has_line_false');
+    AssertTrue(not Prog.GetLine(10, Toks, Raw), 'TestProgramStoreDataStructures/get_line_false');
+  finally
+    Prog.Free;
+  end;
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -465,6 +494,7 @@ begin
   TestLexerKeywordsAndVars;
   TestLexerLiteralsAndOperators;
   TestTokenDetokenizer;
+  TestProgramStoreDataStructures;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
