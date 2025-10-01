@@ -18,6 +18,7 @@ type
   private
     FLines: array of TProgramLine;
     function FindIndex(LineNo: Word): Integer;
+    function FindInsertIndex(LineNo: Word): Integer;
   public
     constructor Create;
     destructor Destroy; override;
@@ -26,6 +27,7 @@ type
     function LineCount: Integer;
     function HasLine(LineNo: Word): Boolean;
     function GetLine(LineNo: Word; out Tokens: TTokenArray; out RawText: string): Boolean;
+    procedure SetLine(LineNo: Word; const Tokens: TTokenArray; const RawText: string = '');
   end;
 
 implementation
@@ -95,6 +97,60 @@ begin
   Tokens := FLines[Idx].Tokens;
   RawText := FLines[Idx].RawText;
   Result := True;
+end;
+
+function TProgram.FindInsertIndex(LineNo: Word): Integer;
+var
+  LowIdx, HighIdx, Mid: Integer;
+begin
+  LowIdx := 0;
+  HighIdx := High(FLines);
+  while LowIdx <= HighIdx do
+  begin
+    Mid := (LowIdx + HighIdx) div 2;
+    if FLines[Mid].LineNumber = LineNo then
+      Exit(Mid)
+    else if FLines[Mid].LineNumber < LineNo then
+      LowIdx := Mid + 1
+    else
+      HighIdx := Mid - 1;
+  end;
+  Result := LowIdx;
+end;
+
+procedure TProgram.SetLine(LineNo: Word; const Tokens: TTokenArray; const RawText: string);
+var
+  Idx, I, OldLen: Integer;
+begin
+  if (Length(Tokens) = 0) or ((Length(Tokens) = 1) and (Tokens[0].TokenType = ttEOL)) then
+  begin
+    Idx := FindIndex(LineNo);
+    if Idx >= 0 then
+    begin
+      for I := Idx to High(FLines) - 1 do
+        FLines[I] := FLines[I + 1];
+      SetLength(FLines, Length(FLines) - 1);
+    end;
+    Exit;
+  end;
+
+  Idx := FindIndex(LineNo);
+  if Idx >= 0 then
+  begin
+    FLines[Idx].Tokens := Tokens;
+    FLines[Idx].RawText := RawText;
+    Exit;
+  end;
+
+  Idx := FindInsertIndex(LineNo);
+  OldLen := Length(FLines);
+  SetLength(FLines, OldLen + 1);
+  for I := OldLen downto Idx + 1 do
+    FLines[I] := FLines[I - 1];
+
+  FLines[Idx].LineNumber := LineNo;
+  FLines[Idx].Tokens := Tokens;
+  FLines[Idx].RawText := RawText;
 end;
 
 end.

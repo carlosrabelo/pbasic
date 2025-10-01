@@ -481,6 +481,45 @@ begin
   end;
 end;
 
+procedure TestProgramStoreInsertionAndReplacement;
+var
+  Prog: TProgram;
+  Toks: TTokenArray;
+  Raw: string;
+begin
+  writeln('=== RUN TestProgramStoreInsertionAndReplacement');
+
+  Prog := TProgram.Create;
+  try
+    // Insert out of order: 30, 10, 20
+    Prog.SetLine(30, Tokenize('PRINT "THIRTY"'), '30 PRINT "THIRTY"');
+    Prog.SetLine(10, Tokenize('PRINT "TEN"'), '10 PRINT "TEN"');
+    Prog.SetLine(20, Tokenize('PRINT "TWENTY"'), '20 PRINT "TWENTY"');
+
+    AssertTrue(Prog.LineCount = 3, 'TestProgramStoreInsertionAndReplacement/count_3');
+    AssertTrue(Prog.HasLine(10), 'TestProgramStoreInsertionAndReplacement/has_10');
+    AssertTrue(Prog.HasLine(20), 'TestProgramStoreInsertionAndReplacement/has_20');
+    AssertTrue(Prog.HasLine(30), 'TestProgramStoreInsertionAndReplacement/has_30');
+
+    // Verify content of line 20
+    AssertTrue(Prog.GetLine(20, Toks, Raw), 'TestProgramStoreInsertionAndReplacement/get_20');
+    AssertEquals('20 PRINT "TWENTY"', Raw, 'TestProgramStoreInsertionAndReplacement/raw_20');
+
+    // Replace line 20 with new statement
+    Prog.SetLine(20, Tokenize('PRINT "TWENTY REPLACED"'), '20 PRINT "TWENTY REPLACED"');
+    AssertTrue(Prog.LineCount = 3, 'TestProgramStoreInsertionAndReplacement/count_still_3');
+    AssertTrue(Prog.GetLine(20, Toks, Raw), 'TestProgramStoreInsertionAndReplacement/get_20_replaced');
+    AssertEquals('20 PRINT "TWENTY REPLACED"', Raw, 'TestProgramStoreInsertionAndReplacement/raw_20_replaced');
+
+    // Setting empty line deletes line 10
+    Prog.SetLine(10, Tokenize(''), '10');
+    AssertTrue(Prog.LineCount = 2, 'TestProgramStoreInsertionAndReplacement/count_after_empty_line');
+    AssertTrue(not Prog.HasLine(10), 'TestProgramStoreInsertionAndReplacement/line_10_deleted');
+  finally
+    Prog.Free;
+  end;
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -495,6 +534,7 @@ begin
   TestLexerLiteralsAndOperators;
   TestTokenDetokenizer;
   TestProgramStoreDataStructures;
+  TestProgramStoreInsertionAndReplacement;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
