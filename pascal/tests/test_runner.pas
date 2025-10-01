@@ -520,6 +520,38 @@ begin
   end;
 end;
 
+procedure TestProgramStoreLineDeletion;
+var
+  Prog: TProgram;
+begin
+  writeln('=== RUN TestProgramStoreLineDeletion');
+
+  Prog := TProgram.Create;
+  try
+    Prog.SetLine(100, Tokenize('PRINT 100'), '100 PRINT 100');
+    Prog.SetLine(200, Tokenize('PRINT 200'), '200 PRINT 200');
+    Prog.SetLine(300, Tokenize('PRINT 300'), '300 PRINT 300');
+
+    // Removing non-existent line returns false
+    AssertTrue(not Prog.RemoveLine(999), 'TestProgramStoreLineDeletion/remove_nonexistent_false');
+    AssertTrue(Prog.LineCount = 3, 'TestProgramStoreLineDeletion/count_unchanged');
+
+    // Removing existing middle line returns true
+    AssertTrue(Prog.RemoveLine(200), 'TestProgramStoreLineDeletion/remove_200_true');
+    AssertTrue(Prog.LineCount = 2, 'TestProgramStoreLineDeletion/count_is_2');
+    AssertTrue(not Prog.HasLine(200), 'TestProgramStoreLineDeletion/line_200_absent');
+    AssertTrue(Prog.HasLine(100), 'TestProgramStoreLineDeletion/line_100_present');
+    AssertTrue(Prog.HasLine(300), 'TestProgramStoreLineDeletion/line_300_present');
+
+    // Removing remaining lines
+    AssertTrue(Prog.RemoveLine(100), 'TestProgramStoreLineDeletion/remove_100_true');
+    AssertTrue(Prog.RemoveLine(300), 'TestProgramStoreLineDeletion/remove_300_true');
+    AssertTrue(Prog.Empty, 'TestProgramStoreLineDeletion/now_empty');
+  finally
+    Prog.Free;
+  end;
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -535,6 +567,7 @@ begin
   TestTokenDetokenizer;
   TestProgramStoreDataStructures;
   TestProgramStoreInsertionAndReplacement;
+  TestProgramStoreLineDeletion;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
