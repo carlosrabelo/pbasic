@@ -3,7 +3,7 @@ program test_runner;
 {$mode objfpc}{$H+}
 
 uses
-  SysUtils, Classes, Process, pbasic_repl, pbasic_signals, pbasic_token, pbasic_lexer, pbasic_program;
+  SysUtils, Classes, Process, pbasic_repl, pbasic_signals, pbasic_token, pbasic_lexer, pbasic_program, pbasic_env;
 
 var
   TotalTests: Integer = 0;
@@ -629,6 +629,20 @@ begin
   end;
 end;
 
+procedure TestVariableStoreContainer;
+var
+  Store: TVariableStore;
+begin
+  writeln('=== RUN TestVariableStoreContainer');
+
+  Store := TVariableStore.Create;
+  try
+    AssertTrue(Store.Count = 26, 'TestVariableStoreContainer/count_26');
+  finally
+    Store.Free;
+  end;
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -647,6 +661,7 @@ begin
   TestProgramStoreLineDeletion;
   TestProgramStoreTraversal;
   TestProgramStoreListingAndMemory;
+  TestVariableStoreContainer;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
