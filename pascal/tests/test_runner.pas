@@ -552,6 +552,53 @@ begin
   end;
 end;
 
+procedure TestProgramStoreTraversal;
+var
+  Prog: TProgram;
+  LineNo, NextNo: Word;
+begin
+  writeln('=== RUN TestProgramStoreTraversal');
+
+  Prog := TProgram.Create;
+  try
+    // Empty program traversal
+    AssertTrue(not Prog.GetFirstLine(LineNo), 'TestProgramStoreTraversal/empty_first_false');
+    AssertTrue(not Prog.GetNextLine(10, NextNo), 'TestProgramStoreTraversal/empty_next_false');
+
+    // Populate with 10, 25, 50, 100
+    Prog.SetLine(50, Tokenize('PRINT 50'), '50 PRINT 50');
+    Prog.SetLine(10, Tokenize('PRINT 10'), '10 PRINT 10');
+    Prog.SetLine(100, Tokenize('PRINT 100'), '100 PRINT 100');
+    Prog.SetLine(25, Tokenize('PRINT 25'), '25 PRINT 25');
+
+    // First line should be 10
+    AssertTrue(Prog.GetFirstLine(LineNo), 'TestProgramStoreTraversal/get_first_true');
+    AssertTrue(LineNo = 10, 'TestProgramStoreTraversal/first_is_10');
+
+    // Next after 10 should be 25
+    AssertTrue(Prog.GetNextLine(10, NextNo), 'TestProgramStoreTraversal/next_after_10_true');
+    AssertTrue(NextNo = 25, 'TestProgramStoreTraversal/next_after_10_is_25');
+
+    // Next after arbitrary line not in program (e.g. 15) should be 25
+    AssertTrue(Prog.GetNextLine(15, NextNo), 'TestProgramStoreTraversal/next_after_15_true');
+    AssertTrue(NextNo = 25, 'TestProgramStoreTraversal/next_after_15_is_25');
+
+    // Next after 25 should be 50
+    AssertTrue(Prog.GetNextLine(25, NextNo), 'TestProgramStoreTraversal/next_after_25_is_50');
+    AssertTrue(NextNo = 50, 'TestProgramStoreTraversal/next_after_25_val');
+
+    // Next after 50 should be 100
+    AssertTrue(Prog.GetNextLine(50, NextNo), 'TestProgramStoreTraversal/next_after_50_is_100');
+    AssertTrue(NextNo = 100, 'TestProgramStoreTraversal/next_after_50_val');
+
+    // Next after 100 (or beyond) should return false
+    AssertTrue(not Prog.GetNextLine(100, NextNo), 'TestProgramStoreTraversal/next_after_100_false');
+    AssertTrue(not Prog.GetNextLine(200, NextNo), 'TestProgramStoreTraversal/next_after_200_false');
+  finally
+    Prog.Free;
+  end;
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -568,6 +615,7 @@ begin
   TestProgramStoreDataStructures;
   TestProgramStoreInsertionAndReplacement;
   TestProgramStoreLineDeletion;
+  TestProgramStoreTraversal;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');

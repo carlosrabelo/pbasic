@@ -29,6 +29,8 @@ type
     function GetLine(LineNo: Word; out Tokens: TTokenArray; out RawText: string): Boolean;
     procedure SetLine(LineNo: Word; const Tokens: TTokenArray; const RawText: string = '');
     function RemoveLine(LineNo: Word): Boolean;
+    function GetFirstLine(out LineNo: Word): Boolean;
+    function GetNextLine(CurrentLine: Word; out NextLine: Word): Boolean;
   end;
 
 implementation
@@ -160,6 +162,47 @@ begin
     FLines[I] := FLines[I + 1];
   SetLength(FLines, Length(FLines) - 1);
   Result := True;
+end;
+
+function TProgram.GetFirstLine(out LineNo: Word): Boolean;
+begin
+  if Length(FLines) = 0 then
+  begin
+    LineNo := 0;
+    Exit(False);
+  end;
+  LineNo := FLines[0].LineNumber;
+  Result := True;
+end;
+
+function TProgram.GetNextLine(CurrentLine: Word; out NextLine: Word): Boolean;
+var
+  LowIdx, HighIdx, Mid, FoundIdx: Integer;
+begin
+  LowIdx := 0;
+  HighIdx := High(FLines);
+  FoundIdx := -1;
+
+  while LowIdx <= HighIdx do
+  begin
+    Mid := (LowIdx + HighIdx) div 2;
+    if FLines[Mid].LineNumber > CurrentLine then
+    begin
+      FoundIdx := Mid;
+      HighIdx := Mid - 1;
+    end
+    else
+      LowIdx := Mid + 1;
+  end;
+
+  if FoundIdx >= 0 then
+  begin
+    NextLine := FLines[FoundIdx].LineNumber;
+    Exit(True);
+  end;
+
+  NextLine := 0;
+  Result := False;
 end;
 
 end.
