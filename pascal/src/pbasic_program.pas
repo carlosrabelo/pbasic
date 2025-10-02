@@ -31,9 +31,15 @@ type
     function RemoveLine(LineNo: Word): Boolean;
     function GetFirstLine(out LineNo: Word): Boolean;
     function GetNextLine(CurrentLine: Word; out NextLine: Word): Boolean;
+    function ListLines: string;
+    procedure ListLines(var F: Text);
+    function ByteSize: LongInt;
   end;
 
 implementation
+
+uses
+  SysUtils, pbasic_lexer;
 
 constructor TProgram.Create;
 begin
@@ -203,6 +209,56 @@ begin
 
   NextLine := 0;
   Result := False;
+end;
+
+function TProgram.ListLines: string;
+var
+  S, LineText: string;
+  I: Integer;
+begin
+  S := '';
+  for I := 0 to High(FLines) do
+  begin
+    if Length(FLines[I].Tokens) > 0 then
+      LineText := Detokenize(FLines[I].Tokens)
+    else
+      LineText := FLines[I].RawText;
+    S := S + IntToStr(FLines[I].LineNumber) + ' ' + LineText + #10;
+  end;
+  Result := S;
+end;
+
+procedure TProgram.ListLines(var F: Text);
+var
+  I: Integer;
+  LineText: string;
+begin
+  for I := 0 to High(FLines) do
+  begin
+    if Length(FLines[I].Tokens) > 0 then
+      LineText := Detokenize(FLines[I].Tokens)
+    else
+      LineText := FLines[I].RawText;
+    writeln(F, FLines[I].LineNumber, ' ', LineText);
+  end;
+end;
+
+function TProgram.ByteSize: LongInt;
+var
+  Total: LongInt;
+  I: Integer;
+  LineText: string;
+begin
+  Total := 0;
+  for I := 0 to High(FLines) do
+  begin
+    if Length(FLines[I].Tokens) > 0 then
+      LineText := Detokenize(FLines[I].Tokens)
+    else
+      LineText := FLines[I].RawText;
+    Total := Total + 4 + Length(LineText) + 1;
+  end;
+  Result := Total;
 end;
 
 end.
