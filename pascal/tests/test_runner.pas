@@ -643,6 +643,42 @@ begin
   end;
 end;
 
+procedure TestVariableGetSetOperations;
+var
+  Store: TVariableStore;
+begin
+  writeln('=== RUN TestVariableGetSetOperations');
+
+  Store := TVariableStore.Create;
+  try
+    // Initial values are 0
+    AssertTrue(Store.Get('A') = 0, 'TestVariableGetSetOperations/initial_a_zero');
+    AssertTrue(Store.Get('Z') = 0, 'TestVariableGetSetOperations/initial_z_zero');
+
+    // Setting values and reading with uppercase / lowercase
+    Store.SetVal('A', 12345);
+    Store.SetVal('z', -98765);
+    Store.SetVar('M', 2147483647);
+
+    AssertTrue(Store.Get('a') = 12345, 'TestVariableGetSetOperations/get_a_lowercase');
+    AssertTrue(Store.Get('Z') = -98765, 'TestVariableGetSetOperations/get_z_uppercase');
+    AssertTrue(Store.GetVar('M') = 2147483647, 'TestVariableGetSetOperations/get_m_maxint');
+
+    // Invalid character returns 0 and does not crash
+    AssertTrue(Store.Get('1') = 0, 'TestVariableGetSetOperations/invalid_char_zero');
+    Store.SetVal('?', 999);
+    AssertTrue(Store.Get('?') = 0, 'TestVariableGetSetOperations/invalid_char_ignored');
+
+    // Clear resets all variables to 0
+    Store.Clear;
+    AssertTrue(Store.Get('A') = 0, 'TestVariableGetSetOperations/after_clear_a_zero');
+    AssertTrue(Store.Get('Z') = 0, 'TestVariableGetSetOperations/after_clear_z_zero');
+    AssertTrue(Store.Get('M') = 0, 'TestVariableGetSetOperations/after_clear_m_zero');
+  finally
+    Store.Free;
+  end;
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -662,6 +698,7 @@ begin
   TestProgramStoreTraversal;
   TestProgramStoreListingAndMemory;
   TestVariableStoreContainer;
+  TestVariableGetSetOperations;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
