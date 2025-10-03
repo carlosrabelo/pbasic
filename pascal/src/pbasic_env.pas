@@ -19,9 +19,13 @@ type
   end;
 
 function Mul16(A, B: LongInt): LongInt;
+function Div16(A, B: LongInt): LongInt;
+function Mod16(A, B: LongInt): LongInt;
 function Add32(A, B: LongInt): LongInt;
 function Sub32(A, B: LongInt): LongInt;
 function Neg32(A: LongInt): LongInt;
+function NextRND(var Seed: Word): Word;
+function Abs32(A: LongInt): LongInt;
 
 implementation
 
@@ -79,6 +83,30 @@ begin
   Result := (LongWord(Word(A)) * LongWord(Word(B))) and $FFFF;
 end;
 
+function Div16(A, B: LongInt): LongInt;
+var
+  UA, UB: Word;
+begin
+  UA := Word(A);
+  UB := Word(B);
+  if UB = 0 then
+    Result := $FFFF
+  else
+    Result := UA div UB;
+end;
+
+function Mod16(A, B: LongInt): LongInt;
+var
+  UA, UB: Word;
+begin
+  UA := Word(A);
+  UB := Word(B);
+  if UB = 0 then
+    Result := UA
+  else
+    Result := UA mod UB;
+end;
+
 function Add32(A, B: LongInt): LongInt;
 begin
   Result := A + B;
@@ -92,6 +120,20 @@ end;
 function Neg32(A: LongInt): LongInt;
 begin
   Result := -A;
+end;
+
+function NextRND(var Seed: Word): Word;
+begin
+  Seed := (LongWord(Seed) * 25173 + 13849) and $FFFF;
+  Result := Seed;
+end;
+
+function Abs32(A: LongInt): LongInt;
+begin
+  if A < 0 then
+    Result := -A
+  else
+    Result := A;
 end;
 
 end.
