@@ -18,6 +18,11 @@ type
     procedure SetVar(Name: Char; Value: LongInt);
   end;
 
+function Mul16(A, B: LongInt): LongInt;
+function Add32(A, B: LongInt): LongInt;
+function Sub32(A, B: LongInt): LongInt;
+function Neg32(A: LongInt): LongInt;
+
 implementation
 
 constructor TVariableStore.Create;
@@ -67,6 +72,26 @@ end;
 procedure TVariableStore.SetVar(Name: Char; Value: LongInt);
 begin
   SetVal(Name, Value);
+end;
+
+function Mul16(A, B: LongInt): LongInt;
+begin
+  Result := (LongWord(Word(A)) * LongWord(Word(B))) and $FFFF;
+end;
+
+function Add32(A, B: LongInt): LongInt;
+begin
+  Result := A + B;
+end;
+
+function Sub32(A, B: LongInt): LongInt;
+begin
+  Result := A - B;
+end;
+
+function Neg32(A: LongInt): LongInt;
+begin
+  Result := -A;
 end;
 
 end.

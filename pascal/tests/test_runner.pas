@@ -679,6 +679,26 @@ begin
   end;
 end;
 
+procedure TestMul16AndArithmetic;
+begin
+  writeln('=== RUN TestMul16AndArithmetic');
+
+  // Basic multiplication
+  AssertTrue(Mul16(100, 20) = 2000, 'TestMul16AndArithmetic/mul_simple');
+
+  // Overflow truncation to 16 bits: 1000 * 1000 = 1,000,000 mod 65536 = 16960
+  AssertTrue(Mul16(1000, 1000) = (1000000 and $FFFF), 'TestMul16AndArithmetic/mul_overflow_trunc');
+
+  // Max word multiplication
+  AssertTrue(Mul16(65535, 2) = ((65535 * 2) and $FFFF), 'TestMul16AndArithmetic/mul_maxword');
+
+  // 32-bit arithmetic helpers
+  AssertTrue(Add32(100, 200) = 300, 'TestMul16AndArithmetic/add32');
+  AssertTrue(Sub32(100, 200) = -100, 'TestMul16AndArithmetic/sub32');
+  AssertTrue(Neg32(15) = -15, 'TestMul16AndArithmetic/neg32_pos');
+  AssertTrue(Neg32(-15) = 15, 'TestMul16AndArithmetic/neg32_neg');
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -699,6 +719,7 @@ begin
   TestProgramStoreListingAndMemory;
   TestVariableStoreContainer;
   TestVariableGetSetOperations;
+  TestMul16AndArithmetic;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
