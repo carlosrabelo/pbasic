@@ -3,7 +3,7 @@ program test_runner;
 {$mode objfpc}{$H+}
 
 uses
-  SysUtils, Classes, Process, pbasic_repl, pbasic_signals, pbasic_token, pbasic_lexer, pbasic_program, pbasic_env;
+  SysUtils, Classes, Process, pbasic_repl, pbasic_signals, pbasic_token, pbasic_lexer, pbasic_program, pbasic_env, pbasic_evaluator;
 
 var
   TotalTests: Integer = 0;
@@ -738,6 +738,76 @@ begin
   AssertTrue(R1 = ((1 * 25173 + 13849) and $FFFF), 'TestDiv16AndMod16/rnd_first_value');
 end;
 
+procedure TestExpressionFactorParser;
+var
+  Vars: TVariableStore;
+  Prog: TProgramStore;
+  Seed: Word;
+  Toks: TTokenArray;
+  Eval: TEvaluator;
+  Val: LongInt;
+begin
+  writeln('=== RUN TestExpressionFactorParser');
+  Vars := TVariableStore.Create;
+  Prog := TProgramStore.Create;
+  Seed := 42;
+
+  Vars.SetVar('A', 100);
+  Vars.SetVar('Z', -50);
+
+  // Number literal
+  Toks := Tokenize('12345');
+  Eval := TEvaluator.Create(Toks, Vars, Prog, @Seed);
+  AssertTrue(Eval.EvalFactor = 12345, 'TestExpressionFactorParser/number');
+  Eval.Free;
+
+  // Variable lookup
+  Toks := Tokenize('A');
+  Eval := TEvaluator.Create(Toks, Vars, Prog, @Seed);
+  AssertTrue(Eval.EvalFactor = 100, 'TestExpressionFactorParser/var_a');
+  Eval.Free;
+
+  // Unary minus
+  Toks := Tokenize('-42');
+  Eval := TEvaluator.Create(Toks, Vars, Prog, @Seed);
+  AssertTrue(Eval.EvalFactor = -42, 'TestExpressionFactorParser/unary_minus');
+  Eval.Free;
+
+  // Unary plus
+  Toks := Tokenize('+99');
+  Eval := TEvaluator.Create(Toks, Vars, Prog, @Seed);
+  AssertTrue(Eval.EvalFactor = 99, 'TestExpressionFactorParser/unary_plus');
+  Eval.Free;
+
+  // Parenthesized factor
+  Toks := Tokenize('(777)');
+  Eval := TEvaluator.Create(Toks, Vars, Prog, @Seed);
+  AssertTrue(Eval.EvalFactor = 777, 'TestExpressionFactorParser/paren');
+  Eval.Free;
+
+  // ABS function
+  Toks := Tokenize('ABS(Z)');
+  Eval := TEvaluator.Create(Toks, Vars, Prog, @Seed);
+  AssertTrue(Eval.EvalFactor = 50, 'TestExpressionFactorParser/abs');
+  Eval.Free;
+
+  // FREE function
+  Toks := Tokenize('FREE');
+  Eval := TEvaluator.Create(Toks, Vars, Prog, @Seed);
+  AssertTrue(Eval.EvalFactor = 16384, 'TestExpressionFactorParser/free_empty');
+  Eval.Free;
+
+  // RND function
+  Toks := Tokenize('RND(10)');
+  Eval := TEvaluator.Create(Toks, Vars, Prog, @Seed);
+  Val := Eval.EvalFactor;
+  AssertTrue((Val >= 1) and (Val <= 10), 'TestExpressionFactorParser/rnd_range');
+  Eval.Free;
+
+  Vars.Free;
+  Prog.Free;
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -760,6 +830,7 @@ begin
   TestVariableGetSetOperations;
   TestMul16AndArithmetic;
   TestDiv16AndMod16;
+  TestExpressionFactorParser;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
