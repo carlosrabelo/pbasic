@@ -197,8 +197,24 @@ begin
 end;
 
 function TEvaluator.EvalExpression: LongInt;
+var
+  Left, Right: LongInt;
+  Op: TTokenType;
 begin
-  Result := EvalTerm;
+  Left := EvalTerm();
+
+  while Check(ttPlus) or Check(ttMinus) do
+  begin
+    Op := Advance.TokenType;
+    Right := EvalTerm();
+
+    if Op = ttPlus then
+      Left := Add32(Left, Right)
+    else
+      Left := Sub32(Left, Right);
+  end;
+
+  Result := Left;
 end;
 
 function TEvaluator.EvalCondition: Boolean;
