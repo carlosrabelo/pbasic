@@ -172,8 +172,28 @@ begin
 end;
 
 function TEvaluator.EvalTerm: LongInt;
+var
+  Left, Right: LongInt;
+  Op: TTokenType;
+  ULeft, URight: Word;
 begin
-  Result := EvalFactor;
+  Left := EvalFactor();
+
+  while Check(ttStar) or Check(ttSlash) do
+  begin
+    Op := Advance.TokenType;
+    Right := EvalFactor();
+
+    ULeft := Word(Left and $FFFF);
+    URight := Word(Right and $FFFF);
+
+    if Op = ttStar then
+      Left := Mul16(ULeft, URight)
+    else
+      Left := Div16(ULeft, URight);
+  end;
+
+  Result := Left;
 end;
 
 function TEvaluator.EvalExpression: LongInt;
