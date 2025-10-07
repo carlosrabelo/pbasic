@@ -218,8 +218,30 @@ begin
 end;
 
 function TEvaluator.EvalCondition: Boolean;
+var
+  Left: LongInt;
 begin
-  Result := EvalExpression <> 0;
+  Left := EvalExpression();
+
+  if Match(ttEq) then
+    Exit(Left = EvalExpression());
+
+  if Match(ttNotEq) then
+    Exit(Left <> EvalExpression());
+
+  if Match(ttLtEq) then
+    Exit(Left <= EvalExpression());
+
+  if Match(ttGtEq) then
+    Exit(Left >= EvalExpression());
+
+  if Match(ttLt) then
+    Exit(Left < EvalExpression());
+
+  if Match(ttGt) then
+    Exit(Left > EvalExpression());
+
+  Result := Left <> 0;
 end;
 
 end.
