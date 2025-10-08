@@ -1067,6 +1067,54 @@ begin
   Vars.Free;
 end;
 
+procedure TestExecPrintFormatting;
+var
+  Interp: TInterpreter;
+  Vars: TVariableStore;
+  Toks: TTokenArray;
+  ExpectedNewline: string;
+begin
+  writeln('=== RUN TestExecPrintFormatting');
+  ExpectedNewline := LineEnding;
+  Vars := TVariableStore.Create;
+  Vars.SetVar('A', 42);
+  Interp := TInterpreter.Create(nil, Vars);
+  Interp.CaptureOutput := True;
+
+  // String literal
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('PRINT "HELLO"');
+  Interp.ExecuteStatement(Toks);
+  AssertTrue(Interp.OutputBuffer = 'HELLO' + ExpectedNewline, 'TestExecPrintFormatting/string_literal');
+
+  // Expression
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('PRINT 10 + 20');
+  Interp.ExecuteStatement(Toks);
+  AssertTrue(Interp.OutputBuffer = '30' + ExpectedNewline, 'TestExecPrintFormatting/expression');
+
+  // Comma separation
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('PRINT A, 100');
+  Interp.ExecuteStatement(Toks);
+  AssertTrue(Interp.OutputBuffer = '42        100' + ExpectedNewline, 'TestExecPrintFormatting/comma_spacing');
+
+  // Semicolon concatenation
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('PRINT 10; 20');
+  Interp.ExecuteStatement(Toks);
+  AssertTrue(Interp.OutputBuffer = '1020' + ExpectedNewline, 'TestExecPrintFormatting/semicolon_concat');
+
+  // Trailing semicolon suppresses newline
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('PRINT "LINE";');
+  Interp.ExecuteStatement(Toks);
+  AssertTrue(Interp.OutputBuffer = 'LINE', 'TestExecPrintFormatting/trailing_semicolon');
+
+  Interp.Free;
+  Vars.Free;
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -1094,6 +1142,7 @@ begin
   TestAdditiveExpressionParser;
   TestRelationalExpressionEvaluator;
   TestStatementDispatcherSkeleton;
+  TestExecPrintFormatting;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
