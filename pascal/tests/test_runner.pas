@@ -1115,6 +1115,60 @@ begin
   Vars.Free;
 end;
 
+procedure TestExecLetStatements;
+var
+  Interp: TInterpreter;
+  Vars: TVariableStore;
+  Toks: TTokenArray;
+  Res: TExecResult;
+begin
+  writeln('=== RUN TestExecLetStatements');
+  Vars := TVariableStore.Create;
+  Interp := TInterpreter.Create(nil, Vars);
+  Interp.CaptureOutput := True;
+
+  // Explicit LET
+  Toks := Tokenize('LET A = 100');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erOk, 'TestExecLetStatements/explicit_let_ok');
+  AssertTrue(Vars.Get('A') = 100, 'TestExecLetStatements/explicit_let_val');
+
+  // Explicit LET with expression
+  Toks := Tokenize('LET B = A * 2 + 5');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erOk, 'TestExecLetStatements/let_expr_ok');
+  AssertTrue(Vars.Get('B') = 205, 'TestExecLetStatements/let_expr_val');
+
+  // Implicit LET
+  Toks := Tokenize('C = B - 5');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erOk, 'TestExecLetStatements/implicit_let_ok');
+  AssertTrue(Vars.Get('C') = 200, 'TestExecLetStatements/implicit_let_val');
+
+  // Implicit LET summing variables
+  Toks := Tokenize('Z = A + B + C');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erOk, 'TestExecLetStatements/implicit_sum_ok');
+  AssertTrue(Vars.Get('Z') = 505, 'TestExecLetStatements/implicit_sum_val');
+
+  // Syntax error: target not variable
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('LET 10 = 20');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erSyntaxError, 'TestExecLetStatements/non_var_target');
+  AssertContains('?SYNTAX ERROR', Interp.OutputBuffer, 'TestExecLetStatements/non_var_output');
+
+  // Syntax error: missing equal sign
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('LET A 10');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erSyntaxError, 'TestExecLetStatements/missing_equal');
+  AssertContains('?SYNTAX ERROR', Interp.OutputBuffer, 'TestExecLetStatements/missing_equal_output');
+
+  Interp.Free;
+  Vars.Free;
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -1143,6 +1197,7 @@ begin
   TestRelationalExpressionEvaluator;
   TestStatementDispatcherSkeleton;
   TestExecPrintFormatting;
+  TestExecLetStatements;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');

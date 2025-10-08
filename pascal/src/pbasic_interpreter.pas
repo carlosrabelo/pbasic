@@ -32,6 +32,7 @@ type
 
     procedure SyntaxError;
     function ExecPrint(const Tokens: TTokenArray; var Cursor: Integer): TExecResult;
+    function ExecLet(const Tokens: TTokenArray; var Cursor: Integer): TExecResult;
   public
     constructor Create(AProg: TProgramStore = nil; AVars: TVariableStore = nil; ARandSeed: Word = 12345);
     destructor Destroy; override;
@@ -159,6 +160,40 @@ begin
   Result := erOk;
 end;
 
+function TInterpreter.ExecLet(const Tokens: TTokenArray; var Cursor: Integer): TExecResult;
+var
+  VarName: Char;
+  Eval: TEvaluator;
+  Val: LongInt;
+begin
+  if (Cursor >= Length(Tokens)) or (Tokens[Cursor].TokenType <> ttIdent) then
+  begin
+    SyntaxError;
+    Exit(erSyntaxError);
+  end;
+
+  VarName := Tokens[Cursor].VarName;
+  Inc(Cursor);
+
+  if (Cursor >= Length(Tokens)) or (Tokens[Cursor].TokenType <> ttEq) then
+  begin
+    SyntaxError;
+    Exit(erSyntaxError);
+  end;
+  Inc(Cursor);
+
+  Eval := TEvaluator.Create(Tokens, FVars, FProg, @FRandSeed);
+  Eval.SetCursor(Cursor);
+  Val := Eval.EvalExpression();
+  Cursor := Eval.GetCursor();
+  Eval.Free;
+
+  if FVars <> nil then
+    FVars.SetVar(VarName, Val);
+
+  Result := erOk;
+end;
+
 function TInterpreter.ExecuteStatement(const Tokens: TTokenArray): TExecResult;
 var
   Cursor: Integer;
@@ -183,7 +218,18 @@ begin
       Exit(ExecPrint(Tokens, Cursor));
     end;
 
-    ttLet, ttIdent, ttNew, ttFree, ttList, ttRun,
+    ttLet:
+    begin
+      Inc(Cursor);
+      Exit(ExecLet(Tokens, Cursor));
+    end;
+
+    ttIdent:
+    begin
+      Exit(ExecLet(Tokens, Cursor));
+    end;
+
+    ttNew, ttFree, ttList, ttRun,
     ttGoto, ttGosub, ttReturn, ttIf, ttEnd, ttExit, ttInput:
       Exit(erOk);
 
