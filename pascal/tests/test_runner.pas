@@ -1169,6 +1169,66 @@ begin
   Vars.Free;
 end;
 
+procedure TestExecNewRemFree;
+var
+  Interp: TInterpreter;
+  Prog: TProgramStore;
+  Vars: TVariableStore;
+  Toks: TTokenArray;
+  Res: TExecResult;
+  ExpectedNewline: string;
+begin
+  writeln('=== RUN TestExecNewRemFree');
+  ExpectedNewline := LineEnding;
+  Prog := TProgramStore.Create;
+  Vars := TVariableStore.Create;
+  Interp := TInterpreter.Create(Prog, Vars);
+  Interp.CaptureOutput := True;
+
+  // FREE on empty program: 16384
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('FREE');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erOk, 'TestExecNewRemFree/free_empty_ok');
+  AssertTrue(Interp.OutputBuffer = '16384' + ExpectedNewline, 'TestExecNewRemFree/free_empty_output');
+
+  // Populate program and vars
+  Prog.SetLine(10, Tokenize('PRINT "HELLO"'), '10 PRINT "HELLO"');
+  Prog.SetLine(20, Tokenize('LET A = 99'), '20 LET A = 99');
+  Vars.SetVar('A', 99);
+  Vars.SetVar('B', 123);
+  AssertTrue(Prog.LineCount = 2, 'TestExecNewRemFree/populated_lines');
+  AssertTrue(Vars.Get('A') = 99, 'TestExecNewRemFree/populated_var');
+
+  // FREE with program stored
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('FREE');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erOk, 'TestExecNewRemFree/free_prog_ok');
+  AssertTrue(Interp.OutputBuffer = IntToStr(16384 - Prog.ByteSize) + ExpectedNewline, 'TestExecNewRemFree/free_prog_output');
+
+  // REM statement
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('REM this does nothing');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erOk, 'TestExecNewRemFree/rem_ok');
+  AssertTrue(Interp.OutputBuffer = '', 'TestExecNewRemFree/rem_no_output');
+
+  // NEW statement clears program and vars and prints OK
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('NEW');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erOk, 'TestExecNewRemFree/new_ok');
+  AssertTrue(Interp.OutputBuffer = 'OK' + ExpectedNewline, 'TestExecNewRemFree/new_output');
+  AssertTrue(Prog.LineCount = 0, 'TestExecNewRemFree/new_prog_cleared');
+  AssertTrue(Vars.Get('A') = 0, 'TestExecNewRemFree/new_vars_cleared_a');
+  AssertTrue(Vars.Get('B') = 0, 'TestExecNewRemFree/new_vars_cleared_b');
+
+  Interp.Free;
+  Prog.Free;
+  Vars.Free;
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -1198,6 +1258,7 @@ begin
   TestStatementDispatcherSkeleton;
   TestExecPrintFormatting;
   TestExecLetStatements;
+  TestExecNewRemFree;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
