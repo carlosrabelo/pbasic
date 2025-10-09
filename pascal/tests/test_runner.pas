@@ -1229,6 +1229,64 @@ begin
   Vars.Free;
 end;
 
+procedure TestRunExecutionLoop;
+var
+  Interp: TInterpreter;
+  Prog: TProgramStore;
+  Vars: TVariableStore;
+  Toks: TTokenArray;
+  Res: TExecResult;
+  ExpectedNewline: string;
+begin
+  writeln('=== RUN TestRunExecutionLoop');
+  ExpectedNewline := LineEnding;
+  Prog := TProgramStore.Create;
+  Vars := TVariableStore.Create;
+  Interp := TInterpreter.Create(Prog, Vars);
+  Interp.CaptureOutput := True;
+
+  // RUN empty program -> ?NO PROGRAM
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('RUN');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erOk, 'TestRunExecutionLoop/run_empty_ok');
+  AssertTrue(Interp.OutputBuffer = '?NO PROGRAM' + ExpectedNewline, 'TestRunExecutionLoop/run_empty_output');
+
+  // Multi-line program execution
+  Prog.SetLine(10, Tokenize('LET A = 10'), '10 LET A = 10');
+  Prog.SetLine(20, Tokenize('LET B = 20'), '20 LET B = 20');
+  Prog.SetLine(30, Tokenize('PRINT A + B'), '30 PRINT A + B');
+
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('RUN');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erOk, 'TestRunExecutionLoop/run_multiline_ok');
+  AssertTrue(Interp.OutputBuffer = '30' + ExpectedNewline, 'TestRunExecutionLoop/run_multiline_output');
+  AssertTrue(Vars.Get('A') = 10, 'TestRunExecutionLoop/run_var_a');
+  AssertTrue(Vars.Get('B') = 20, 'TestRunExecutionLoop/run_var_b');
+
+  // LIST command via interpreter
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('LIST');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erOk, 'TestRunExecutionLoop/list_ok');
+  AssertContains('10 LET A = 10', Interp.OutputBuffer, 'TestRunExecutionLoop/list_line10');
+  AssertContains('20 LET B = 20', Interp.OutputBuffer, 'TestRunExecutionLoop/list_line20');
+  AssertContains('30 PRINT A + B', Interp.OutputBuffer, 'TestRunExecutionLoop/list_line30');
+
+  // Interruption handling
+  SetInterrupted(True);
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('RUN');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erOk, 'TestRunExecutionLoop/interrupted_ok');
+  AssertTrue(Interp.Halted, 'TestRunExecutionLoop/interrupted_halted');
+
+  Interp.Free;
+  Prog.Free;
+  Vars.Free;
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -1259,6 +1317,7 @@ begin
   TestExecPrintFormatting;
   TestExecLetStatements;
   TestExecNewRemFree;
+  TestRunExecutionLoop;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
