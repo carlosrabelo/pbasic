@@ -41,6 +41,8 @@ type
     function ExecFree: TExecResult;
     function ExecList: TExecResult;
     function ExecGoto(const Tokens: TTokenArray; var Cursor: Integer): TExecResult;
+    function ExecGosub(const Tokens: TTokenArray; var Cursor: Integer): TExecResult;
+    function ExecReturn: TExecResult;
   public
     constructor Create(AProg: TProgramStore = nil; AVars: TVariableStore = nil; ARandSeed: Word = 12345);
     destructor Destroy; override;
@@ -320,6 +322,53 @@ begin
   Result := erOk;
 end;
 
+function TInterpreter.ExecGosub(const Tokens: TTokenArray; var Cursor: Integer): TExecResult;
+var
+  NextLineNo: Word;
+  RetLine: Word;
+begin
+  if Length(FGosubStack) >= 16 then
+  begin
+    SyntaxError;
+    FHalted := True;
+    Exit(erSyntaxError);
+  end;
+
+  RetLine := 0;
+  if (FProg <> nil) and FProg.GetNextLine(FCurrentLineNo, NextLineNo) then
+    RetLine := NextLineNo;
+
+  SetLength(FGosubStack, Length(FGosubStack) + 1);
+  FGosubStack[High(FGosubStack)] := RetLine;
+
+  Result := ExecGoto(Tokens, Cursor);
+end;
+
+function TInterpreter.ExecReturn: TExecResult;
+var
+  RetLine: Word;
+begin
+  if Length(FGosubStack) = 0 then
+  begin
+    SyntaxError;
+    FHalted := True;
+    Exit(erSyntaxError);
+  end;
+
+  RetLine := FGosubStack[High(FGosubStack)];
+  SetLength(FGosubStack, Length(FGosubStack) - 1);
+
+  if RetLine = 0 then
+  begin
+    FHalted := True;
+    Exit(erOk);
+  end;
+
+  FBranchTarget := RetLine;
+  FBranchTaken := True;
+  Result := erOk;
+end;
+
 function TInterpreter.ExecuteStatement(const Tokens: TTokenArray): TExecResult;
 var
   Cursor: Integer;
@@ -373,7 +422,16 @@ begin
       Exit(ExecGoto(Tokens, Cursor));
     end;
 
-    ttGosub, ttReturn, ttIf, ttEnd, ttExit, ttInput:
+    ttGosub:
+    begin
+      Inc(Cursor);
+      Exit(ExecGosub(Tokens, Cursor));
+    end;
+
+    ttReturn:
+      Exit(ExecReturn());
+
+    ttIf, ttEnd, ttExit, ttInput:
       Exit(erOk);
 
     else

@@ -1329,6 +1329,68 @@ begin
   Vars.Free;
 end;
 
+procedure TestExecGosubReturn;
+var
+  Interp: TInterpreter;
+  Prog: TProgramStore;
+  Vars: TVariableStore;
+  Toks: TTokenArray;
+  Res: TExecResult;
+  ExpectedNewline: string;
+begin
+  writeln('=== RUN TestExecGosubReturn');
+  ExpectedNewline := LineEnding;
+  Prog := TProgramStore.Create;
+  Vars := TVariableStore.Create;
+  Interp := TInterpreter.Create(Prog, Vars);
+  Interp.CaptureOutput := True;
+
+  // Simple subroutine call and return
+  Prog.SetLine(10, Tokenize('GOSUB 100'), '10 GOSUB 100');
+  Prog.SetLine(20, Tokenize('PRINT "AFTER"'), '20 PRINT "AFTER"');
+  Prog.SetLine(30, Tokenize('GOTO 200'), '30 GOTO 200');
+  Prog.SetLine(100, Tokenize('PRINT "SUB"'), '100 PRINT "SUB"');
+  Prog.SetLine(110, Tokenize('RETURN'), '110 RETURN');
+  Prog.SetLine(200, Tokenize('PRINT "END"'), '200 PRINT "END"');
+
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('RUN');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erOk, 'TestExecGosubReturn/simple_gosub_ok');
+  AssertTrue(Interp.OutputBuffer = 'SUB' + ExpectedNewline + 'AFTER' + ExpectedNewline + 'END' + ExpectedNewline, 'TestExecGosubReturn/simple_gosub_output');
+
+  // Nested subroutine call
+  Prog.Clear;
+  Prog.SetLine(10, Tokenize('GOSUB 100'), '10 GOSUB 100');
+  Prog.SetLine(20, Tokenize('GOTO 300'), '20 GOTO 300');
+  Prog.SetLine(100, Tokenize('GOSUB 200'), '100 GOSUB 200');
+  Prog.SetLine(110, Tokenize('PRINT "SUB1"'), '110 PRINT "SUB1"');
+  Prog.SetLine(120, Tokenize('RETURN'), '120 RETURN');
+  Prog.SetLine(200, Tokenize('PRINT "SUB2"'), '200 PRINT "SUB2"');
+  Prog.SetLine(210, Tokenize('RETURN'), '210 RETURN');
+  Prog.SetLine(300, Tokenize('PRINT "MAIN"'), '300 PRINT "MAIN"');
+
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('RUN');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erOk, 'TestExecGosubReturn/nested_gosub_ok');
+  AssertTrue(Interp.OutputBuffer = 'SUB2' + ExpectedNewline + 'SUB1' + ExpectedNewline + 'MAIN' + ExpectedNewline, 'TestExecGosubReturn/nested_gosub_output');
+
+  // RETURN without GOSUB underflow error
+  Prog.Clear;
+  Prog.SetLine(10, Tokenize('RETURN'), '10 RETURN');
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('RUN');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erSyntaxError, 'TestExecGosubReturn/return_underflow_error');
+  AssertContains('?SYNTAX ERROR', Interp.OutputBuffer, 'TestExecGosubReturn/return_underflow_msg');
+  AssertTrue(Interp.Halted, 'TestExecGosubReturn/return_underflow_halted');
+
+  Interp.Free;
+  Prog.Free;
+  Vars.Free;
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -1361,6 +1423,7 @@ begin
   TestExecNewRemFree;
   TestRunExecutionLoop;
   TestExecGotoBranching;
+  TestExecGosubReturn;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
