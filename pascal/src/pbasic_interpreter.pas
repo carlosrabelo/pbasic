@@ -40,6 +40,7 @@ type
     function ExecNew: TExecResult;
     function ExecFree: TExecResult;
     function ExecList: TExecResult;
+    function ExecGoto(const Tokens: TTokenArray; var Cursor: Integer): TExecResult;
   public
     constructor Create(AProg: TProgramStore = nil; AVars: TVariableStore = nil; ARandSeed: Word = 12345);
     destructor Destroy; override;
@@ -296,6 +297,29 @@ begin
   Result := erOk;
 end;
 
+function TInterpreter.ExecGoto(const Tokens: TTokenArray; var Cursor: Integer): TExecResult;
+var
+  Eval: TEvaluator;
+  Target: LongInt;
+begin
+  Eval := TEvaluator.Create(Tokens, FVars, FProg, @FRandSeed);
+  Eval.SetCursor(Cursor);
+  Target := Eval.EvalExpression();
+  Cursor := Eval.GetCursor();
+  Eval.Free;
+
+  if (Target < 1) or (Target > 65535) or (FProg = nil) or (not FProg.HasLine(Word(Target))) then
+  begin
+    SyntaxError;
+    FHalted := True;
+    Exit(erSyntaxError);
+  end;
+
+  FBranchTarget := Word(Target);
+  FBranchTaken := True;
+  Result := erOk;
+end;
+
 function TInterpreter.ExecuteStatement(const Tokens: TTokenArray): TExecResult;
 var
   Cursor: Integer;
@@ -343,7 +367,13 @@ begin
     ttList:
       Exit(ExecList());
 
-    ttGoto, ttGosub, ttReturn, ttIf, ttEnd, ttExit, ttInput:
+    ttGoto:
+    begin
+      Inc(Cursor);
+      Exit(ExecGoto(Tokens, Cursor));
+    end;
+
+    ttGosub, ttReturn, ttIf, ttEnd, ttExit, ttInput:
       Exit(erOk);
 
     else
