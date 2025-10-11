@@ -44,6 +44,8 @@ type
     function ExecGosub(const Tokens: TTokenArray; var Cursor: Integer): TExecResult;
     function ExecReturn: TExecResult;
     function ExecIf(const Tokens: TTokenArray; var Cursor: Integer): TExecResult;
+    function ExecEnd: TExecResult;
+    function ExecExit: TExecResult;
   public
     constructor Create(AProg: TProgramStore = nil; AVars: TVariableStore = nil; ARandSeed: Word = 12345);
     destructor Destroy; override;
@@ -416,6 +418,19 @@ begin
   Result := ExecuteStatement(Remaining);
 end;
 
+function TInterpreter.ExecEnd: TExecResult;
+begin
+  FHalted := True;
+  Result := erStop;
+end;
+
+function TInterpreter.ExecExit: TExecResult;
+begin
+  FExitRequested := True;
+  FHalted := True;
+  Result := erStop;
+end;
+
 function TInterpreter.ExecuteStatement(const Tokens: TTokenArray): TExecResult;
 var
   Cursor: Integer;
@@ -484,7 +499,13 @@ begin
       Exit(ExecIf(Tokens, Cursor));
     end;
 
-    ttEnd, ttExit, ttInput:
+    ttEnd:
+      Exit(ExecEnd());
+
+    ttExit:
+      Exit(ExecExit());
+
+    ttInput:
       Exit(erOk);
 
     else
