@@ -43,6 +43,7 @@ type
     function ExecGoto(const Tokens: TTokenArray; var Cursor: Integer): TExecResult;
     function ExecGosub(const Tokens: TTokenArray; var Cursor: Integer): TExecResult;
     function ExecReturn: TExecResult;
+    function ExecIf(const Tokens: TTokenArray; var Cursor: Integer): TExecResult;
   public
     constructor Create(AProg: TProgramStore = nil; AVars: TVariableStore = nil; ARandSeed: Word = 12345);
     destructor Destroy; override;
@@ -369,6 +370,52 @@ begin
   Result := erOk;
 end;
 
+function TInterpreter.ExecIf(const Tokens: TTokenArray; var Cursor: Integer): TExecResult;
+var
+  Eval: TEvaluator;
+  Cond: Boolean;
+  Target: Word;
+  Remaining: TTokenArray;
+  I, RemCount: Integer;
+begin
+  Eval := TEvaluator.Create(Tokens, FVars, FProg, @FRandSeed);
+  Eval.SetCursor(Cursor);
+  Cond := Eval.EvalCondition();
+  Cursor := Eval.GetCursor();
+  Eval.Free;
+
+  if (Cursor >= Length(Tokens)) or (Tokens[Cursor].TokenType <> ttThen) then
+  begin
+    SyntaxError;
+    Exit(erSyntaxError);
+  end;
+  Inc(Cursor);
+
+  if not Cond then
+    Exit(erOk);
+
+  if (Cursor < Length(Tokens)) and (Tokens[Cursor].TokenType = ttNumber) then
+  begin
+    Target := Word(Tokens[Cursor].NumberVal);
+    if (FProg = nil) or (not FProg.HasLine(Target)) then
+    begin
+      SyntaxError;
+      FHalted := True;
+      Exit(erSyntaxError);
+    end;
+    FBranchTarget := Target;
+    FBranchTaken := True;
+    Exit(erOk);
+  end;
+
+  RemCount := Length(Tokens) - Cursor;
+  SetLength(Remaining, RemCount);
+  for I := 0 to RemCount - 1 do
+    Remaining[I] := Tokens[Cursor + I];
+
+  Result := ExecuteStatement(Remaining);
+end;
+
 function TInterpreter.ExecuteStatement(const Tokens: TTokenArray): TExecResult;
 var
   Cursor: Integer;
@@ -431,7 +478,13 @@ begin
     ttReturn:
       Exit(ExecReturn());
 
-    ttIf, ttEnd, ttExit, ttInput:
+    ttIf:
+    begin
+      Inc(Cursor);
+      Exit(ExecIf(Tokens, Cursor));
+    end;
+
+    ttEnd, ttExit, ttInput:
       Exit(erOk);
 
     else
