@@ -1556,6 +1556,55 @@ begin
   Vars.Free;
 end;
 
+procedure TestPRNGAndRND;
+var
+  Seed: Word;
+  FirstVal, ExpectedVal: Word;
+  Toks: TTokenArray;
+  Ev: TEvaluator;
+  Res: LongInt;
+  I: Integer;
+  Interp: TInterpreter;
+  ExpectedNewline: string;
+begin
+  writeln('=== RUN TestPRNGAndRND');
+  ExpectedNewline := LineEnding;
+
+  // 1. NextRND direct calculation from seed 12345
+  Seed := 12345;
+  FirstVal := NextRND(Seed);
+  ExpectedVal := (LongWord(12345) * 25173 + 13849) and $FFFF; // 2822
+  AssertTrue(FirstVal = ExpectedVal, 'TestPRNGAndRND/first_val_math');
+  AssertTrue(Seed = ExpectedVal, 'TestPRNGAndRND/seed_updated');
+
+  // 2. Evaluator RND(0) returns raw 16-bit word
+  Seed := 12345;
+  Toks := Tokenize('RND(0)');
+  Ev := TEvaluator.Create(Toks, nil, nil, @Seed);
+  Res := Ev.EvalExpression();
+  AssertTrue(Res = ExpectedVal, 'TestPRNGAndRND/eval_rnd_zero');
+  Ev.Free;
+
+  // 3. Evaluator RND(6) returns in range [1..6]
+  for I := 1 to 50 do
+  begin
+    Toks := Tokenize('RND(6)');
+    Ev := TEvaluator.Create(Toks, nil, nil, @Seed);
+    Res := Ev.EvalExpression();
+    AssertTrue((Res >= 1) and (Res <= 6), 'TestPRNGAndRND/eval_rnd_dice_range');
+    Ev.Free;
+  end;
+
+  // 4. Interpreter execution: PRINT RND(0) with seed 12345
+  Interp := TInterpreter.Create(nil, nil, 12345);
+  Interp.CaptureOutput := True;
+  Toks := Tokenize('PRINT RND(0)');
+  Interp.ExecuteStatement(Toks);
+  AssertTrue(Interp.OutputBuffer = '2822' + ExpectedNewline, 'TestPRNGAndRND/interp_print_rnd_zero');
+  AssertTrue(Interp.RandSeed = 2822, 'TestPRNGAndRND/interp_randseed_updated');
+  Interp.Free;
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -1592,6 +1641,7 @@ begin
   TestExecIfThenBranching;
   TestExecEndAndExit;
   TestExecInputStatement;
+  TestPRNGAndRND;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
