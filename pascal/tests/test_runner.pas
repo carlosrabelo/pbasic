@@ -1493,6 +1493,69 @@ begin
   Vars.Free;
 end;
 
+procedure TestExecInputStatement;
+var
+  Interp: TInterpreter;
+  Prog: TProgramStore;
+  Vars: TVariableStore;
+  Toks: TTokenArray;
+  Res: TExecResult;
+  ExpectedNewline: string;
+begin
+  writeln('=== RUN TestExecInputStatement');
+  ExpectedNewline := LineEnding;
+  Prog := TProgramStore.Create;
+  Vars := TVariableStore.Create;
+  Interp := TInterpreter.Create(Prog, Vars);
+  Interp.CaptureOutput := True;
+
+  // 1. INPUT with default prompt
+  Interp.ClearOutputBuffer;
+  Interp.QueueInput('42');
+  Toks := Tokenize('INPUT A');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erOk, 'TestExecInputStatement/default_prompt_ok');
+  AssertTrue(Interp.OutputBuffer = '? ', 'TestExecInputStatement/default_prompt_out');
+  AssertTrue(Vars.Get('A') = 42, 'TestExecInputStatement/var_a_val');
+
+  // 2. INPUT with custom prompt string
+  Interp.ClearOutputBuffer;
+  Interp.QueueInput('100');
+  Toks := Tokenize('INPUT "GUESS: "; B');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erOk, 'TestExecInputStatement/custom_prompt_ok');
+  AssertTrue(Interp.OutputBuffer = 'GUESS: ', 'TestExecInputStatement/custom_prompt_out');
+  AssertTrue(Vars.Get('B') = 100, 'TestExecInputStatement/var_b_val');
+
+  // 3. INPUT syntax error: non-variable
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('INPUT 123');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erSyntaxError, 'TestExecInputStatement/syntax_err_non_var');
+  AssertContains('?SYNTAX ERROR', Interp.OutputBuffer, 'TestExecInputStatement/syntax_err_non_var_msg');
+
+  // 4. INPUT syntax error: missing semicolon after prompt
+  Interp.ClearOutputBuffer;
+  Toks := Tokenize('INPUT "PROMPT" C');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erSyntaxError, 'TestExecInputStatement/syntax_err_missing_semi');
+  AssertContains('?SYNTAX ERROR', Interp.OutputBuffer, 'TestExecInputStatement/syntax_err_missing_semi_msg');
+
+  // 5. INPUT with SIGINT interruption
+  Interp.ClearOutputBuffer;
+  SetInterrupted(True);
+  Toks := Tokenize('INPUT D');
+  Res := Interp.ExecuteStatement(Toks);
+  AssertTrue(Res = erStop, 'TestExecInputStatement/sigint_stop');
+  AssertTrue(Interp.Halted, 'TestExecInputStatement/sigint_halted');
+  AssertContains(ExpectedNewline, Interp.OutputBuffer, 'TestExecInputStatement/sigint_newline');
+  AssertTrue(not CheckAndResetInterrupted(), 'TestExecInputStatement/sigint_cleared');
+
+  Interp.Free;
+  Prog.Free;
+  Vars.Free;
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -1528,6 +1591,7 @@ begin
   TestExecGosubReturn;
   TestExecIfThenBranching;
   TestExecEndAndExit;
+  TestExecInputStatement;
 
   writeln('');
   writeln('Test Results: ', PassedTests, ' passed, ', FailedTests, ' failed, ', TotalTests, ' total.');
