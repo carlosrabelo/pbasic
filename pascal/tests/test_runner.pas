@@ -1657,6 +1657,47 @@ begin
   Interp.Free;
 end;
 
+procedure TestClassifyLine;
+var
+  P: TParsedLinePrefix;
+begin
+  writeln('=== RUN TestClassifyLine');
+
+  // 1. Numbered line
+  P := ClassifyLine('10 PRINT "HI"');
+  AssertTrue(P.LineType = ltNumbered, 'TestClassifyLine/numbered_type');
+  AssertTrue(P.LineNumber = 10, 'TestClassifyLine/numbered_lineno_10');
+  AssertEquals('PRINT "HI"', P.Content, 'TestClassifyLine/numbered_content');
+
+  // 2. High numbered line
+  P := ClassifyLine('65535 END');
+  AssertTrue(P.LineType = ltNumbered, 'TestClassifyLine/numbered_65535_type');
+  AssertTrue(P.LineNumber = 65535, 'TestClassifyLine/numbered_65535_lineno');
+  AssertEquals('END', P.Content, 'TestClassifyLine/numbered_65535_content');
+
+  // 3. Numbered line without content (deletion)
+  P := ClassifyLine('20');
+  AssertTrue(P.LineType = ltNumbered, 'TestClassifyLine/numbered_empty_type');
+  AssertTrue(P.LineNumber = 20, 'TestClassifyLine/numbered_empty_lineno');
+  AssertEquals('', P.Content, 'TestClassifyLine/numbered_empty_content');
+
+  // 4. Immediate statement
+  P := ClassifyLine('PRINT 123');
+  AssertTrue(P.LineType = ltImmediate, 'TestClassifyLine/immediate_type');
+  AssertTrue(P.LineNumber = 0, 'TestClassifyLine/immediate_lineno');
+  AssertEquals('PRINT 123', P.Content, 'TestClassifyLine/immediate_content');
+
+  // 5. Empty line / whitespace
+  P := ClassifyLine('   ');
+  AssertTrue(P.LineType = ltEmpty, 'TestClassifyLine/empty_type');
+  AssertEquals('', P.Content, 'TestClassifyLine/empty_content');
+
+  // 6. Zero line number falls back to immediate
+  P := ClassifyLine('0 INVALID');
+  AssertTrue(P.LineType = ltImmediate, 'TestClassifyLine/zero_immediate_type');
+  AssertEquals('0 INVALID', P.Content, 'TestClassifyLine/zero_immediate_content');
+end;
+
 begin
   writeln('Running Free Pascal unit tests...');
   TestCLIArgumentDispatch;
@@ -1665,6 +1706,7 @@ begin
   TestReadLine;
   TestSignalInterruptedFlag;
   TestREPLStart;
+  TestClassifyLine;
   TestTokenDataStructures;
   TestLexerPunctuation;
   TestLexerKeywordsAndVars;

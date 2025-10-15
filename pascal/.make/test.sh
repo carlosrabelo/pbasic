@@ -22,9 +22,9 @@ fi
 # Ensure main binary is built
 "$ROOT_DIR/.make/build.sh"
 
-DEMO_FILE="$ROOT_DIR/demos/99_test.bas"
-if [ "${ENABLE_DEMOS:-0}" = "1" ]; then
-    DEMO_FILE="$ROOT_DIR/../demos/99_test.bas"
+DEMO_FILE="$ROOT_DIR/../demos/99_test.bas"
+if [ ! -f "$DEMO_FILE" ]; then
+    DEMO_FILE="$ROOT_DIR/demos/99_test.bas"
 fi
 
 if [ -f "$DEMO_FILE" ] && [ -f "$BIN_DIR/pbasic" ]; then
